@@ -1,0 +1,7 @@
+Manifest-Version: 1.0
+Archiver-Version: Plexus Archiver
+Created-By: Apache Maven 3.8.5
+Built-By: AMAN
+Build-Jdk: 21.0.11
+Main-Class: dev.aman.auramusicfx.Launcher
+
