@@ -242,6 +242,27 @@ public class PlaylistView {
 
         });
         searchField.setPromptText("Search songs...");
+        searchField.textProperty().addListener((obs, oldText, newText) -> {
+
+            String search = newText.toLowerCase().trim();
+
+            for (var node : songsBox.getChildren()) {
+
+                Button button = (Button) node;
+
+                String songName =
+                        button.getText()
+                                .replace("♪ ", "")
+                                .replace("▶ ", "")
+                                .toLowerCase();
+
+                boolean visible =
+                        songName.contains(search);
+
+                button.setVisible(visible);
+                button.setManaged(visible);
+            }
+        });
         HBox controlsRow = new HBox(16);
         controlsRow.setPadding(new Insets(5,0,5,0));
         controlsRow.setAlignment(Pos.CENTER_LEFT);

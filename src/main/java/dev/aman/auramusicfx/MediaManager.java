@@ -52,6 +52,7 @@ public class MediaManager {
     }
 
     private MediaPlayer mediaPlayer;
+    private final VlcMediaManager vlcManager = new VlcMediaManager();
 
     private Image currentArtwork;
 
@@ -154,13 +155,14 @@ public class MediaManager {
     }
 
     public void playSong(File file) {
-        currentSongIndex =
-                songs.indexOf(file);
+        currentArtwork = null;
+        currentArtist = "Unknown Artist";
+        currentAlbum = "Unknown Album";
 
+        currentSongIndex = songs.indexOf(file);
 
         try {
             try {
-
 
                 if (file.getName().toLowerCase().endsWith(".mp3")) {
 
@@ -193,21 +195,36 @@ public class MediaManager {
 
                             currentArtwork = new Image(
 
-                                            new ByteArrayInputStream(imageData)
-                                    );
+                                    new ByteArrayInputStream(imageData)
+                            );
                         }
                     }
                 }
-            }
-            catch (Exception ex) {
+            } catch (Exception ex) {
+
+                System.out.println(
+                        "Cannot play: "
+                                + file.getName()
+                );
 
                 ex.printStackTrace();
             }
 
-            Media media =
-                    new Media(
-                            file.toURI().toString()
-                    );
+            Media media = new Media(file.toURI().toString());
+            if (
+                    file.getName().toLowerCase().endsWith(".flac")
+                            ||
+                            file.getName().toLowerCase().endsWith(".m4a")
+            ) {
+
+                vlcManager.play(file);
+
+                if (songChangeListener != null) {
+                    songChangeListener.onSongChanged(file);
+                }
+
+                return;
+            }
 
             if (mediaPlayer != null) {
 
@@ -217,6 +234,33 @@ public class MediaManager {
             }
 
             mediaPlayer = new MediaPlayer(media);
+
+            mediaPlayer.setOnError(() -> {
+
+                System.out.println(
+                        "MediaPlayer Error: "
+                                + mediaPlayer.getError()
+                );
+
+                Platform.runLater(() -> {
+
+                    javafx.scene.control.Alert alert =
+                            new javafx.scene.control.Alert(
+                                    javafx.scene.control.Alert.AlertType.ERROR
+                            );
+
+                    alert.setHeaderText(
+                            "Unsupported Audio Format"
+                    );
+
+                    alert.setContentText(
+                            file.getName()
+                                    + "\n\nThis file cannot be played by JavaFX."
+                    );
+
+                    alert.showAndWait();
+                });
+            });
             mediaPlayer.setOnReady(() -> {
 
                 File lastSong =
@@ -241,8 +285,8 @@ public class MediaManager {
             mediaPlayer.play();
             LastSongManager.saveSong(file);
             mediaPlayer.currentTimeProperty().addListener((obs, oldTime, newTime) -> {
-                        PlaybackPositionManager.savePosition(newTime.toSeconds());
-                    });
+                PlaybackPositionManager.savePosition(newTime.toSeconds());
+            });
 
             if (songChangeListener != null) {
 
@@ -281,12 +325,33 @@ public class MediaManager {
                             playSong(nextSong);
                         }
                     }
-                }});
-
+                }
+            });
         } catch (Exception ex) {
-            ex.printStackTrace();
+
+            Platform.runLater(() -> {
+
+                javafx.scene.control.Alert alert =
+                        new javafx.scene.control.Alert(
+                                javafx.scene.control.Alert.AlertType.ERROR
+                        );
+
+                alert.setHeaderText(
+                        "Unsupported Audio Format"
+                );
+
+                alert.setContentText(
+                        file.getName()
+                                + "\n\nThis file cannot be played by JavaFX."
+                );
+
+                alert.showAndWait();
+            });
+
+            return;
         }
     }
+
 //interface
 
     public interface SongChangeListener {
@@ -310,8 +375,8 @@ public class MediaManager {
 
         if (currentSongIndex < 0) {
 
-            currentSongIndex =
-                    songs.size() - 1;
+            currentArtwork = null;
+            currentSongIndex = songs.size() - 1;
         }
 
         return songs.get(currentSongIndex);

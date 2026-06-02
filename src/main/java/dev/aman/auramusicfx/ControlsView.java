@@ -245,6 +245,7 @@ public class ControlsView {
                                 name.endsWith(".mp3")
                                         || name.endsWith(".wav")
                                         || name.endsWith(".m4a")
+                                        || name.endsWith(".flac")
                         ) {
 
                             mediaManager.addSong(file);
@@ -818,6 +819,7 @@ public class ControlsView {
                     name.endsWith(".mp3")
                             || name.endsWith(".wav")
                             || name.endsWith(".m4a")
+                            || name.endsWith(".flac")
             ) {
 
                 mediaManager.addSong(file);

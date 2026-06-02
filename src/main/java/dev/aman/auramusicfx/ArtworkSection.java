@@ -25,9 +25,15 @@ public class ArtworkSection {
     public Label getArtistLabel() {
         return artist;
     }
+
     private Color extractColor(Image image) {
 
-        BufferedImage img = SwingFXUtils.fromFXImage(image, null);
+        if (image == null) {
+            return Color.PINK;
+        }
+
+        BufferedImage img =
+                SwingFXUtils.fromFXImage(image, null);
 
         long r = 0, g = 0, b = 0;
         int count = 0;
@@ -45,8 +51,13 @@ public class ArtworkSection {
             }
         }
 
-        return Color.rgb((int)(r / count), (int)(g / count), (int)(b / count));
+        return Color.rgb(
+                (int)(r / count),
+                (int)(g / count),
+                (int)(b / count)
+        );
     }
+
     private ObjectProperty<Color> dominantColor = new SimpleObjectProperty<>(Color.PINK);
 
     public ObjectProperty<Color> dominantColorProperty() {
@@ -152,7 +163,24 @@ public class ArtworkSection {
     }
 
     public void setArtwork(Image image) {
-        dominantColor.set(extractColor(image));
+
+        if (image == null) {
+
+            artwork.setImage(
+                    new Image(
+                            "https://upload.wikimedia.org/wikipedia/en/2/26/Blurred_Lines_cover.png"
+                    )
+            );
+
+            dominantColor.set(Color.PINK);
+
+            return;
+        }
+
+        dominantColor.set(
+                extractColor(image)
+        );
+
         artwork.setImage(image);
     }
 
