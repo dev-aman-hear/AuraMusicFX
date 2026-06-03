@@ -1,5 +1,8 @@
 package dev.aman.auramusicfx;
 
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
+import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
@@ -9,13 +12,20 @@ import javafx.scene.layout.*;
 import javafx.scene.control.Label;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Stage;
-
+import javafx.util.Duration;
+import javafx.scene.Scene;
+import javafx.stage.StageStyle;
+import javafx.scene.paint.Color;
 import java.io.File;
 
 
 public class ControlsView {
 
+    private Timeline vlcTimer;
     private Button playButton;
+
+    private Button muteButton;
+    private double lastVolume = 100;
 
     private Button previousButton;
     private Button nextButton;
@@ -25,13 +35,12 @@ public class ControlsView {
     private HBox controlsSection = new HBox(60);
 
     private HBox topBar = new HBox();
-
+    private ArtworkSection artworkSection;
     private Slider progressBar;
     private Slider volumeSlider;
     private ProgressBar progressFill;
 
     private Label currentTime = new Label("0:00");
-
     private Label totalTime = new Label("-0:00");
 
     private HBox timeRow = new HBox();
@@ -52,7 +61,55 @@ public class ControlsView {
 
         return name;
     }
+    private void loadSongsRecursive(File folder, MediaManager mediaManager) {
 
+        File[] files = folder.listFiles();
+
+        if (files == null) {
+            return;
+        }
+
+        for (File file : files) {
+
+            if (file.isDirectory()) {
+
+                loadSongsRecursive(file, mediaManager);
+
+            } else {
+
+                String name = file.getName().toLowerCase();
+
+                if (
+                        name.endsWith(".mp3")
+                                || name.endsWith(".wav")
+                                || name.endsWith(".m4a")
+                                || name.endsWith(".flac")
+                ) {
+
+                    mediaManager.addSong(file);
+                }
+            }
+        }
+    }
+    private void updateAccentColor(Color color) {
+
+        String rgb = String.format(
+                        "rgb(%d,%d,%d)",
+                        (int)(color.getRed() * 255),
+                        (int)(color.getGreen() * 255),
+                        (int)(color.getBlue() * 255)
+                );
+
+        progressFill.setStyle(
+                "-fx-accent: " + rgb + ";" +
+                        "-fx-control-inner-background: rgba(255,255,255,0.15);"
+        );
+
+        volumeFill.setStyle(
+                "-fx-accent: " + rgb + ";" +
+                        "-fx-control-inner-background: rgba(255,255,255,0.15);"
+        );
+    }
     private void reconnectListeners(
             MediaManager mediaManager,
             LyricsManager lyricsManager,
@@ -81,7 +138,12 @@ public class ControlsView {
             PlaylistView playlistView,
             Stage stage
     ){
+
+        this.artworkSection = artworkSection;
         this.playlistView = playlistView;
+        this.mediaManager = mediaManager;
+        this.lyricsManager = lyricsManager;
+        this.lyricsView = lyricsView;
 
         buildTopBar(
                 mediaManager,
@@ -105,16 +167,83 @@ public class ControlsView {
 
                 lyricsView
         );
+        vlcTimer = new Timeline(
+                new KeyFrame(
+                        Duration.millis(100),
+                        e -> {
+
+                            if (mediaManager.isVlcSong()) {
+
+                                long duration =
+                                        mediaManager
+                                                .getVlcManager()
+                                                .getDuration();
+
+                                long current =
+                                        mediaManager
+                                                .getVlcManager()
+                                                .getCurrentTime();
+                                PlaybackPositionManager.savePosition(
+                                        current / 1000.0
+                                );
+
+                                if (duration > 0) {
+
+                                    double percent =
+                                            (current * 100.0)
+                                                    / duration;
+
+                                    progressBar.setValue(percent);
+
+                                    progressFill.setProgress(
+                                            current / (double) duration
+                                    );
+
+                                    currentTime.setText(
+                                            formatTime(current / 1000.0)
+                                    );
+
+                                    totalTime.setText(
+                                            "-" +
+                                                    formatTime(
+                                                            (duration - current)
+                                                                    / 1000.0
+                                                    )
+                                    );
+                                }
+
+                                lyricsManager.updateLyrics(
+                                        current / 1000.0,
+                                        lyricsView.getLyricsBox(),
+                                        lyricsView.getScrollPane()
+                                );
+                            }
+
+                        }
+                )
+        );
+
+
+        vlcTimer.setCycleCount(Timeline.INDEFINITE);
+
+        vlcTimer.play();
         volumeSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
+            VolumeManager.saveVolume(newVal.doubleValue());
+            volumeFill.setProgress(newVal.doubleValue() / 100.0);
+            if (newVal.doubleValue() == 0) {
 
-            volumeFill.setProgress(
-                    newVal.doubleValue() / 100.0
-            );
+                muteButton.setText("🔇");
 
-            if (mediaManager.getMediaPlayer() != null) {
+            } else {
 
-                mediaManager.getMediaPlayer()
-                        .setVolume(newVal.doubleValue() / 100.0);
+                muteButton.setText("🔊");
+            }
+
+            if (mediaManager.isVlcSong()) {
+
+                mediaManager.getVlcManager().setVolume((int) newVal.doubleValue());
+            } else if (mediaManager.getMediaPlayer() != null) {
+                mediaManager.getMediaPlayer().setVolume(newVal.doubleValue() / 100.0);
             }
         });
 
@@ -123,23 +252,93 @@ public class ControlsView {
         mediaManager.setSongChangeListener(song -> {
 
             updateNowPlaying(
-
                     song,
-
                     mediaManager,
-
                     artworkSection,
-
                     lyricsManager,
-
                     lyricsView
             );
         });
+        artworkSection
+                .dominantColorProperty()
+                .addListener((obs, oldColor, color) -> {
 
-    }private void refreshSeekbar() {
+                    updateAccentColor(color);
+
+                });
+    }
+    public void loadFolder(File folder) {
+
+        if (folder == null) {
+            return;
+        }
+
+        LastFolderManager.saveFolder(folder);
+
+        mediaManager.clearSongs();
+
+        loadSongsRecursive(
+                folder,
+                mediaManager
+        );
+
+        if (mediaManager.getSongs().isEmpty()) {
+            return;
+        }
+
+        File firstSong =
+                mediaManager.getSongs().get(0);
+
+        mediaManager.playSong(firstSong);
+
+        refreshSeekbar();
+
+        reconnectListeners(
+                mediaManager,
+                lyricsManager,
+                lyricsView
+        );
+
+        artworkSection.setArtwork(
+                mediaManager.getCurrentArtwork()
+        );
+
+        artworkSection.setSongTitle(
+                mediaManager.getCurrentTitle()
+        );
+
+        artworkSection.setArtist(
+                mediaManager.getCurrentArtist()
+        );
+
+        artworkSection.setAlbum(
+                mediaManager.getCurrentAlbum()
+        );
+
+        lyricsManager.loadLyrics(
+                firstSong,
+                lyricsView.getLyricsBox()
+        );
+
+        playlistView.loadSongs(
+                mediaManager.getSongs(),
+                mediaManager,
+                artworkSection,
+                lyricsManager,
+                lyricsView
+        );
+
+        playlistView.setActiveSong(firstSong);
+
+        playButton.setText("❚❚");
+    }
+    private void refreshSeekbar() {
         progressBar.applyCss();
         progressBar.layout();
     }
+    private final MediaManager mediaManager;
+    private final LyricsManager lyricsManager;
+    private final LyricsView lyricsView;
     private final PlaylistView playlistView;
     private void buildTopBar(
             MediaManager mediaManager,
@@ -195,7 +394,167 @@ public class ControlsView {
 """);
         Button closeButton =
                 new Button("✕");
+        Button aboutButton =
+                new Button("ⓘ");
+        aboutButton.setStyle("""
+    -fx-background-color:
+        rgba(255,255,255,0.18);
 
+    -fx-background-radius: 18;
+
+    -fx-font-size: 15px;
+
+    -fx-font-weight: bold;
+
+    -fx-min-width: 36;
+    -fx-min-height: 36;
+""");
+        aboutButton.setOnAction(e -> {
+
+
+            Stage aboutStage = new Stage();
+            final double[] offsetX = new double[1];
+            final double[] offsetY = new double[1];
+            VBox root = new VBox(16);
+            root.setPrefWidth(320);
+
+            root.setAlignment(Pos.CENTER);
+
+            root.setPadding(new Insets(24));
+            root.setOnMousePressed(event -> {
+
+                offsetX[0] = event.getSceneX();
+                offsetY[0] = event.getSceneY();
+            });
+            root.setOnMouseDragged(event -> {
+
+                aboutStage.setX(
+                        event.getScreenX()
+                                - offsetX[0]
+                );
+
+                aboutStage.setY(
+                        event.getScreenY()
+                                - offsetY[0]
+                );
+            });
+            root.setOnMouseClicked(event -> {
+
+                if (event.getClickCount() == 2) {
+
+                    aboutStage.close();
+                }
+            });
+            root.setStyle("""
+    -fx-background-color:
+        rgba(20,20,20,0.78);
+
+    -fx-background-radius: 28;
+
+    -fx-border-color:
+        rgba(255,255,255,0.22);
+
+    -fx-border-width: 1.5;
+
+    -fx-border-radius: 28;
+
+    -fx-effect:
+        dropshadow(
+            gaussian,
+            rgba(0,0,0,0.45),
+            30,
+            0.3,
+            0,
+            8
+        );
+""");
+            Label title = new Label("🎵 Aura Music");
+            Label version = new Label("Version 2.0");
+            version.setStyle("""
+    -fx-text-fill:
+        rgba(255,255,255,0.65);
+
+    -fx-font-size: 13px;
+""");
+            title.setStyle("""
+    -fx-text-fill: white;
+    -fx-font-size: 22px;
+    -fx-font-weight: bold;
+""");
+            Label info = new Label("""
+Built with
+
+• JavaFX
+• VLCJ
+• Jaudiotagger
+
+Features
+
+• Lyrics
+• Artwork
+• Favorites
+• Queue
+• FLAC / ALAC
+• Resume Playback
+• Volume Memory
+• Keyboard Shortcuts
+
+© Built By Aman
+""");
+            info.setStyle("""
+    -fx-text-fill:
+        rgba(255,255,255,0.85);
+
+    -fx-font-size: 14px;
+""");
+            info.setWrapText(true);
+
+            info.setMaxWidth(260);
+
+            info.setAlignment(Pos.CENTER);
+
+            info.setTextAlignment(
+                    javafx.scene.text.TextAlignment.CENTER
+            );
+
+            Label hint = new Label("Double-click anywhere to close");
+            hint.setStyle("""
+    -fx-text-fill:
+        rgba(255,255,255,0.55);
+
+    -fx-font-size: 12px;
+
+    -fx-font-style: italic;
+""");
+
+            root.getChildren().addAll(
+                    title,
+                    version,
+                    info,
+                    hint
+            );
+
+            Scene scene = new Scene(root);
+
+            scene.setFill(Color.TRANSPARENT);
+
+            aboutStage.initStyle(
+                    StageStyle.TRANSPARENT
+            );
+
+            aboutStage.setScene(scene);
+            aboutStage.focusedProperty().addListener(
+                    (obs, oldVal, focused) -> {
+
+                        if (!focused) {
+
+                            aboutStage.close();
+                        }
+                    }
+            );
+
+            aboutStage.showAndWait();
+        });
         closeButton.setOnAction(e ->
                 stage.close()
         );
@@ -213,98 +572,19 @@ public class ControlsView {
     -fx-min-height: 36;
 """);
 
+
         openButton.setOnAction(e -> {
 
             DirectoryChooser chooser =
                     new DirectoryChooser();
 
-            chooser.setTitle(
-                    "Select Music Folder"
-            );
+            chooser.setTitle("Select Music Folder");
 
             File folder =
                     chooser.showDialog(stage);
 
-            if (folder != null) {
-
-                LastFolderManager.saveFolder(folder);
-                mediaManager.clearSongs();
-
-                File[] files =
-                        folder.listFiles();
-
-                if (files != null) {
-
-                    for (File file : files) {
-
-                        String name =
-                                file.getName()
-                                        .toLowerCase();
-
-                        if (
-                                name.endsWith(".mp3")
-                                        || name.endsWith(".wav")
-                                        || name.endsWith(".m4a")
-                                        || name.endsWith(".flac")
-                        ) {
-
-                            mediaManager.addSong(file);
-                        }
-                    }
-
-                    File firstSong = null;
-
-
-                        if (!mediaManager.getSongs().isEmpty()) {
-
-                            firstSong = mediaManager
-                                    .getSongs()
-                                    .get(0);
-
-                            mediaManager.playSong(firstSong);
-                            refreshSeekbar();
-                            reconnectListeners(
-                                    mediaManager,
-                                    lyricsManager,
-                                    lyricsView
-                            );
-
-
-                            artworkSection.setArtwork(
-                                    mediaManager.getCurrentArtwork()
-                            );
-
-                            artworkSection.setSongTitle(
-                                    cleanName(firstSong)
-                            );
-                            artworkSection.setArtist(
-                                    mediaManager.getCurrentArtist()
-                            );
-                            artworkSection.setAlbum(
-                                    mediaManager.getCurrentAlbum()
-                            );
-                            lyricsManager.loadLyrics(
-                                    firstSong,
-                                    lyricsView.getLyricsBox()
-                            );
-                            playButton.setText("❚❚");
-                        }
-
-
-                    playlistView.loadSongs(
-                            mediaManager.getSongs(),
-                            mediaManager,
-                            artworkSection,
-                            lyricsManager,
-                            lyricsView
-                    );
-                    playlistView.setActiveSong(
-                            cleanName(firstSong)
-                    );
-                }
-            }
+            loadFolder(folder);
         });
-
         topBar.setAlignment(Pos.CENTER);
 
         topBar.setPrefWidth(360);
@@ -315,19 +595,18 @@ public class ControlsView {
         );
 
         topBar.getChildren().addAll(
-
                 openButton,
-
                 spacer,
-
+                aboutButton,
                 minimizeButton,
-
                 closeButton
         );
+
         topBar.setPadding(
                 new Insets(0, 6, 0, 6)
         );
     }
+
     private void setupProgressUpdates(
             MediaManager mediaManager
     ) {
@@ -341,7 +620,9 @@ public class ControlsView {
                     if (
                             !progressBar.isPressed()
                     )
-                    {
+                        if (mediaManager.getMediaPlayer() == null) {
+                            return;
+                        }{
 
                         double total =
                                 mediaManager
@@ -373,6 +654,7 @@ public class ControlsView {
 
                 });
     }
+
     private String formatTime(double seconds) {
 
         int mins =
@@ -397,8 +679,6 @@ public class ControlsView {
         StackPane seekStack = new StackPane();
 
         seekStack.setAlignment(Pos.CENTER);
-
-        volumeSlider.setValue(100);
 
         volumeSlider.setMinWidth(220);
         volumeSlider.setPrefWidth(220);
@@ -437,6 +717,15 @@ public class ControlsView {
         volumeFill = new ProgressBar(1.0);
         volumeFill.setPrefWidth(220);
 
+        double savedVolume = VolumeManager.loadVolume();
+        volumeSlider.setValue(savedVolume);
+        volumeFill.setProgress(volumeSlider.getValue() / 100.0);
+        if (mediaManager.isVlcSong()) {
+            mediaManager.getVlcManager().setVolume((int) savedVolume);
+
+        } else if (mediaManager.getMediaPlayer() != null) {
+            mediaManager.getMediaPlayer().setVolume(savedVolume / 100.0);
+        }
         volumeFill.setStyle("""
     -fx-accent: white;
 
@@ -488,15 +777,45 @@ public class ControlsView {
         );
         HBox volumeRow = new HBox(12);
         volumeRow.setAlignment(Pos.CENTER);
+        muteButton = new Button("🔊");
+        if (volumeSlider.getValue() == 0) {
 
-        Label volumeIcon = new Label("♪");
+            muteButton.setText("🔇");
+
+        } else {
+
+            muteButton.setText("🔊");
+        }
+        muteButton.setStyle("""
+    -fx-background-color: transparent;
+    -fx-font-size: 18px;
+""");
+
+        muteButton.setOnAction(e -> {
+
+            if (volumeSlider.getValue() > 0) {
+
+                lastVolume =
+                        volumeSlider.getValue();
+
+                volumeSlider.setValue(0);
+
+                muteButton.setText("🔇");
+
+            } else {
+
+                volumeSlider.setValue(lastVolume);
+
+                muteButton.setText("🔊");
+            }
+        });
 
         volumeRow.setAlignment(
                 Pos.CENTER
         );
 
         volumeRow.getChildren().addAll(
-                volumeIcon,
+                muteButton,
                 volumeStack
         );
         progressSection.setSpacing(16);
@@ -605,8 +924,7 @@ public class ControlsView {
                 mediaManager.getCurrentArtwork()
         );
 
-        artworkSection.setSongTitle(
-                cleanName(song)
+        artworkSection.setSongTitle(mediaManager.getCurrentTitle()
         );
         artworkSection.setArtist(
                 mediaManager.getCurrentArtist()
@@ -614,6 +932,17 @@ public class ControlsView {
         artworkSection.setAlbum(
                 mediaManager.getCurrentAlbum()
         );
+        String name =
+                song.getName().toLowerCase();
+
+        String[] info =
+                mediaManager.getAudioInfo(song);
+
+        artworkSection.setQuality(
+                info[0],
+                info[1]
+        );
+
         lyricsManager.loadLyrics(
                 song,
                 lyricsView.getLyricsBox()
@@ -625,9 +954,7 @@ public class ControlsView {
         );
 
         playButton.setText("❚❚");
-        playlistView.setActiveSong(
-                cleanName(song)
-        );
+        playlistView.setActiveSong(song);
     }
     private void buildControls(
 
@@ -680,6 +1007,22 @@ public class ControlsView {
 
         playButton.setOnAction(e -> {
 
+            if (mediaManager.isVlcSong()) {
+
+                if (mediaManager.getVlcManager().isPlaying()) {
+
+                    mediaManager.getVlcManager().pause();
+                    playButton.setText("▶");
+
+                } else {
+
+                    mediaManager.getVlcManager().resume();
+                    playButton.setText("❚❚");
+                }
+
+                return;
+            }
+
             boolean currentlyPlaying =
                     mediaManager.isPlaying();
 
@@ -716,7 +1059,7 @@ public class ControlsView {
                 );
 
                 artworkSection.setSongTitle(
-                        cleanName(previousSong)
+                        mediaManager.getCurrentTitle()
                 );
                 artworkSection.setArtist(
                         mediaManager.getCurrentArtist()
@@ -728,7 +1071,7 @@ public class ControlsView {
                         previousSong,
                         lyricsView.getLyricsBox()
                 );
-
+                playlistView.setActiveSong(previousSong);
                 playButton.setText("❚❚");
             }
         });
@@ -754,9 +1097,11 @@ public class ControlsView {
                 artworkSection.setArtwork(
                         mediaManager.getCurrentArtwork()
                 );
-
+                AnimationManager.pulse(
+                        artworkSection.getArtwork()
+                );
                 artworkSection.setSongTitle(
-                        cleanName(nextSong)
+                        mediaManager.getCurrentTitle()
                 );
                 artworkSection.setArtist(
                         mediaManager.getCurrentArtist()
@@ -768,7 +1113,7 @@ public class ControlsView {
                         nextSong,
                         lyricsView.getLyricsBox()
                 );
-
+                playlistView.setActiveSong(nextSong);
                 playButton.setText("❚❚");
             }
         });
@@ -787,6 +1132,7 @@ public class ControlsView {
                 nextButton
         );
     }
+
     public void autoLoadLastFolder(
             MediaManager mediaManager,
             ArtworkSection artworkSection,
@@ -794,51 +1140,43 @@ public class ControlsView {
             LyricsView lyricsView
     ) {
 
-        File folder =
-                LastFolderManager.loadFolder();
+        File folder = LastFolderManager.loadFolder();
 
         if (folder == null) {
             return;
         }
 
+
+
+
+
         mediaManager.clearSongs();
+        loadSongsRecursive(
+                folder,
+                mediaManager
+        );
 
-        File[] files =
-                folder.listFiles();
-
-        if (files == null) {
+        if (mediaManager.getSongs().isEmpty()) {
             return;
         }
 
-        for (File file : files) {
-
-            String name =
-                    file.getName().toLowerCase();
-
-            if (
-                    name.endsWith(".mp3")
-                            || name.endsWith(".wav")
-                            || name.endsWith(".m4a")
-                            || name.endsWith(".flac")
-            ) {
-
-                mediaManager.addSong(file);
-            }
-        }
 
         if (!mediaManager.getSongs().isEmpty()) {
 
-            File songToPlay =
-                    LastSongManager.loadSong();
+            File songToPlay = LastSongManager.loadSong();
 
-            if (songToPlay == null
-                    || !mediaManager.getSongs().contains(songToPlay)) {
+            if (songToPlay == null || !mediaManager.getSongs().contains(songToPlay)) {
 
-                songToPlay =
-                        mediaManager.getSongs().get(0);
+                songToPlay = mediaManager.getSongs().get(0);
             }
+            final File finalSongToPlay = songToPlay;
 
-            mediaManager.playSong(songToPlay);
+            Platform.runLater(() -> {
+
+                mediaManager.playSong(finalSongToPlay);
+                mediaManager.restorePosition();
+            });
+
 
             refreshSeekbar();
 
@@ -853,7 +1191,7 @@ public class ControlsView {
             );
 
             artworkSection.setSongTitle(
-                    cleanName(songToPlay)
+                    mediaManager.getCurrentTitle()
             );
 
             artworkSection.setArtist(
@@ -875,9 +1213,7 @@ public class ControlsView {
                     lyricsView
             );
 
-            playlistView.setActiveSong(
-                    cleanName(songToPlay)
-            );
+            playlistView.setActiveSong(songToPlay);
 
             playButton.setText("❚❚");
         }
@@ -920,6 +1256,29 @@ public class ControlsView {
 
     public Button getPreviousButton() {
         return previousButton;
+    }
+
+    public void togglePlayPause() {
+        playButton.fire();
+    }
+
+    public void playNext() {
+        nextButton.fire();
+    }
+
+    public void playPrevious() {
+        previousButton.fire();
+    }
+
+    public void toggleMute() {
+        muteButton.fire();
+    }
+
+    public void focusSearch() {
+        playlistView.getSearchField().requestFocus();
+    }
+    public javafx.scene.control.TextField getSearchField() {
+        return playlistView.getSearchField();
     }
 
 }

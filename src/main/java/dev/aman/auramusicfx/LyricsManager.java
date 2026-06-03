@@ -109,15 +109,22 @@ public class LyricsManager {
 
                     lyricLabel.setOnMouseClicked(e -> {
 
-                        if (mediaManager != null &&
-                                mediaManager.getMediaPlayer() != null) {
+                        if (mediaManager == null) {
+                            return;
+                        }
 
-                            mediaManager.getMediaPlayer().seek(
+                        if (mediaManager.isVlcSong()) {
 
-                                    Duration.seconds(
-                                            seekTime
-                                    )
-                            );
+                            mediaManager
+                                    .getVlcManager()
+                                    .seek((long)(seekTime * 1000));
+
+                        } else if (mediaManager.getMediaPlayer() != null) {
+
+                            mediaManager.getMediaPlayer()
+                                    .seek(
+                                            Duration.seconds(seekTime)
+                                    );
                         }
                     });
 

@@ -8,9 +8,25 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.control.TextField;
 import java.io.File;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class PlaylistView {
+
+    private final Map<File, Button> songButtons = new HashMap<>();
+
+    public TextField getSearchField() {
+        return searchField;
+    }
+
+    public void refreshButtons() {
+        updateButtonStates();
+    }
+    private final java.util.Set<String> favorites = FavoritesManager.loadFavorites();
+
+    private Button favoritesButton;
+    private boolean showingFavorites = false;
     private void updateButtonStates() {
 
         if (mediaManager == null) {
@@ -86,6 +102,7 @@ public class PlaylistView {
     """);
         }
 
+
         switch (mediaManager.getRepeatMode()) {
 
             case OFF ->
@@ -101,7 +118,7 @@ public class PlaylistView {
     private VBox songsBox = new VBox(12);
     private MediaManager mediaManager;
     private ScrollPane root = new ScrollPane();
-
+    private VBox rootContainer;
     private Button activeButton;
 
     private TextField searchField;
@@ -126,31 +143,43 @@ public class PlaylistView {
 
         -fx-alignment: CENTER_LEFT;
 
-        -fx-padding: 12 16 12 16;
+      -fx-padding: 10 16 10 16;
     """;
     }
 
     private String glassButtonStyle() {
 
         return """
-       -fx-background-color:
-       rgba(255,255,255,0.45);
+        -fx-background-color:
+            rgba(255,255,255,0.22);
 
-        -fx-background-radius: 18;
+        -fx-background-radius: 28;
 
-        -fx-text-fill: #202020;
+        -fx-border-color:
+            rgba(255,255,255,0.45);
 
-        -fx-font-size: 14px;
+        -fx-border-width: 1.2;
+
+        -fx-border-radius: 28;
+
+        -fx-text-fill: white;
+
+        -fx-font-size: 15px;
 
         -fx-font-weight: bold;
 
-        -fx-padding: 10 18 10 18;
+        -fx-padding: 14 22 14 22;
 
-        -fx-border-color:
-            rgba(255,255,255,0.75);
-
-        -fx-border-radius: 18;
-    """;
+        -fx-effect:
+            dropshadow(
+                gaussian,
+                rgba(255,255,255,0.15),
+                15,
+                0.2,
+                0,
+                0
+            );
+        """;
     }
 
     public PlaylistView() {
@@ -194,9 +223,8 @@ public class PlaylistView {
 
         shuffleButton = new Button("🔀 OFF");
 
-        shuffleButton.setMinWidth(120);
-        shuffleButton.setPrefWidth(120);
-        shuffleButton.setMaxWidth(120);
+        shuffleButton.setPrefSize(115, 52);
+
         shuffleButton.setStyle(
                 glassButtonStyle()
         );
@@ -227,9 +255,8 @@ public class PlaylistView {
             updateButtonStates();
         });
         repeatButton = new Button("🔁 All");
-        repeatButton.setMinWidth(120);
-        repeatButton.setPrefWidth(120);
-        repeatButton.setMaxWidth(120);
+        repeatButton.setPrefSize(115, 52);
+
         repeatButton.setStyle(
                 glassButtonStyle()
         );
@@ -265,10 +292,38 @@ public class PlaylistView {
         });
         HBox controlsRow = new HBox(16);
         controlsRow.setPadding(new Insets(5,0,5,0));
-        controlsRow.setAlignment(Pos.CENTER_LEFT);
+        controlsRow.setAlignment(Pos.CENTER);
+        favoritesButton = new Button("♥ OFF");
+        favoritesButton.setPrefSize(115, 52);
+        favoritesButton.setStyle(glassButtonStyle());
+        favoritesButton.setOnAction(e -> {
+
+            showingFavorites = !showingFavorites;
+
+            for (var node : songsBox.getChildren()) {
+
+                Button button = (Button) node;
+
+                boolean favorite = button.getText().startsWith("♥ ");
+
+                boolean visible = !showingFavorites || favorite;
+
+                button.setVisible(visible);
+                button.setManaged(visible);
+            }
+
+            favoritesButton.setText(
+                    showingFavorites
+                            ? "♥ ON"
+                            : "♥ OFF"
+            );
+        });
+
         controlsRow.getChildren().addAll(
                 shuffleButton,
+                favoritesButton,
                 repeatButton
+
         );
         songsBox.setPadding(
                 new Insets(12)
@@ -277,15 +332,22 @@ public class PlaylistView {
         songsBox.setAlignment(
                 Pos.TOP_LEFT
         );
+        rootContainer = new VBox(12);
 
-        VBox container =
-                new VBox(12);
-        container.getChildren().addAll(searchField, controlsRow, songsBox);
-
-        root.setContent(container);
-
+        rootContainer.getChildren().addAll(
+                searchField,
+                controlsRow,
+                root
+        );
+        root.setContent(songsBox);
         root.setFitToWidth(true);
+        root.setVbarPolicy(
+                ScrollPane.ScrollBarPolicy.NEVER
+        );
 
+        root.setHbarPolicy(
+                ScrollPane.ScrollBarPolicy.NEVER
+        );
         root.setPrefHeight(520);
 
         root.setStyle("""
@@ -309,15 +371,25 @@ public class PlaylistView {
 
         -fx-alignment: CENTER_LEFT;
 
-        -fx-padding: 12 16 12 16;
+      -fx-padding: 10 16 10 16;
     """;
     }
 
     private String activeStyle() {
         return """
         -fx-background-color:
-            rgba(255,255,255,0.30);
+            rgba(255,255,255,0.38);
+-fx-border-width: 2;
 
+-fx-effect:
+    dropshadow(
+        gaussian,
+        rgba(255,255,255,0.55),
+        18,
+        0.3,
+        0,
+        0
+    );
         -fx-background-radius: 12;
 
         -fx-text-fill: white;
@@ -328,7 +400,7 @@ public class PlaylistView {
 
         -fx-alignment: CENTER_LEFT;
 
-        -fx-padding: 12 16 12 16;
+      -fx-padding: 10 16 10 16;
 
         -fx-border-color:
             rgba(255,255,255,0.45);
@@ -337,16 +409,44 @@ public class PlaylistView {
     """;
     }
 
+    public void setActiveSong(File song) {
+
+        Button button = songButtons.get(song);
+
+        if (button == null) {
+            return;
+        }
+        if (activeButton != null) {
+            activeButton.setStyle(normalStyle());
+            String oldName =
+                    activeButton.getText()
+                            .replace("▶ ", "")
+                            .replace("♥ ", "");
+
+            activeButton.setText(
+                    "♪ " + oldName
+            );
+        }
+
+        activeButton = button;
+        activeButton.setStyle(activeStyle());
+        String title = mediaManager.getTitle(song);
+
+        String artist = mediaManager.getArtist(song);
+
+        activeButton.setText(
+                "▶ " + title
+                        + "\n"
+                        + artist
+        );
+        scrollToActiveSong();
+    }
+
     public void loadSongs(
-
             List<File> songs,
-
             MediaManager mediaManager,
-
             ArtworkSection artworkSection,
-
             LyricsManager lyricsManager,
-
             LyricsView lyricsView
     ) {
         this.mediaManager = mediaManager;
@@ -354,78 +454,114 @@ public class PlaylistView {
 
         for (File song : songs) {
 
-            Button songButton =
-                    new Button("♪ " + song.getName().replace(".mp3", "")
-                    );
+            String path = song.getAbsolutePath();
 
+            boolean favorite = favorites.contains(path);
+
+            String title = mediaManager.getTitle(song);
+            String artist = mediaManager.getArtist(song);
+            Button songButton = new Button(
+                    (favorite ? "♥ " : "♪ ")
+                            + title
+                            + "\n"
+                            + artist
+            );
+
+            songButton.setWrapText(true);
+
+            songButton.setAlignment(Pos.CENTER_LEFT);
+
+            songButton.setPrefHeight(80);
+
+            songButtons.put(song, songButton);
             songButton.setMaxWidth(Double.MAX_VALUE);
-
             songButton.setStyle(normalStyle());
-
             songButton.setOnMouseEntered(e -> {
 
                 if (songButton != activeButton) {
-
-                    songButton.setStyle(
-                            hoverStyle()
-                    );
+                    songButton.setStyle(hoverStyle());
                 }
             });
 
             songButton.setOnMouseExited(e -> {
 
                 if (songButton == activeButton) {
-
-                    songButton.setStyle(
-                            activeStyle()
-                    );
+                    songButton.setStyle(activeStyle());
 
                 } else {
-
-                    songButton.setStyle(
-                            normalStyle()
-                    );
+                    songButton.setStyle(normalStyle());
                 }
             });
 
-            songButton.setOnAction(e -> {
+            songButton.setOnContextMenuRequested(e -> {
 
+
+                if (favorites.contains(path)) {
+                    favorites.remove(path);
+                    songButton.setText(
+                            "♪ " + title
+                                    + "\n"
+                                    + artist
+                    );
+
+                } else {
+                    favorites.add(path);
+                    songButton.setText(
+                            "♥ " + title
+                                    + "\n"
+                                    + artist
+                    );
+                }
+
+                FavoritesManager.saveFavorites(favorites);
+            });
+
+            songButton.setOnAction(e -> {
                 if (activeButton != null) {
 
-                    activeButton.setStyle(
-                            normalStyle()
-                    );
+                    activeButton.setStyle(normalStyle());
 
                     String oldName =
                             activeButton.getText()
-                                    .replace("▶ ", "");
+                                    .replace("▶ ", "")
+                                    .replace("♥ ", "");
+                    String activePath = null;
 
-                    activeButton.setText(
-                            "♪ " + oldName
-                    );
+                    for (var entry : songButtons.entrySet()) {
+
+                        if (entry.getValue() == activeButton) {
+
+                            activePath = entry.getKey().getAbsolutePath();
+                            break;
+                        }
+                    }
+                    boolean wasFavorite = activePath != null && favorites.contains(activePath);
+                    activeButton.setText((wasFavorite ? "♥ " : "♪ ") + oldName);
                 }
                 activeButton = songButton;
                 activeButton.setText(
-                        "▶ " +
-                        song.getName().replace(".mp3", "")
+                        "▶ " + title
+                                + "\n"
+                                + artist
                 );
-
-                activeButton.setStyle(
-                        activeStyle()
-                );
+                activeButton.setStyle(activeStyle());
                 scrollToActiveSong();
 
                 mediaManager.playSong(song);
 
-                artworkSection.setArtwork(
-                        mediaManager.getCurrentArtwork()
-                );
+                artworkSection.setArtwork(mediaManager.getCurrentArtwork());
 
                 artworkSection.setSongTitle(
-                        song.getName()
-                                .replace(".mp3", "")
+                        mediaManager.getCurrentTitle()
                 );
 
+                artworkSection.setArtist(
+                        mediaManager.getCurrentArtist()
+                );
+
+                artworkSection.setAlbum(
+                        mediaManager.getCurrentAlbum()
+                );
 
                 lyricsManager.loadLyrics(
 
@@ -435,12 +571,12 @@ public class PlaylistView {
                 );
             });
             songsBox.getChildren().add(songButton);
-            updateButtonStates();
         }
-    }
 
-    public ScrollPane getView() {
-        return root;
+        updateButtonStates();
+    }
+    public VBox getView() {
+        return rootContainer;
     }
 
     public VBox getSongsBox() {
@@ -482,26 +618,14 @@ public class PlaylistView {
 
             Button button = (Button) node;
 
-            String text =
-                    button.getText()
-                            .replace("♪ ", "")
-                            .replace("▶ ", "");
+            String text = button.getText()
+                    .replace("♪ ", "")
+                    .replace("▶ ", "")
+                    .replaceFirst("[.][^.]+$", "");
 
-            if (text.equals(songName)) {
+            if (text.equalsIgnoreCase(songName)) {
 
-                if (activeButton != null) {
 
-                    activeButton.setStyle(
-                            normalStyle()
-                    );
-
-                    activeButton.setText(
-                            "♪ " +
-                            activeButton.getText()
-                                    .replace("▶ ", "")
-                                    .replace("♪ ", "")
-                    );
-                }
 
                 activeButton = button;
 

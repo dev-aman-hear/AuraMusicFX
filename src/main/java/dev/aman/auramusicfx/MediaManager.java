@@ -10,12 +10,165 @@ import java.util.List;
 import javafx.application.Platform;
 import com.mpatric.mp3agic.ID3v2;
 import com.mpatric.mp3agic.Mp3File;
+import org.jaudiotagger.audio.AudioFile;
+import org.jaudiotagger.audio.AudioFileIO;
+import org.jaudiotagger.tag.FieldKey;
+import org.jaudiotagger.tag.Tag;
+import org.jaudiotagger.tag.datatype.Artwork;
 
 import javafx.scene.image.Image;
 
 import java.io.ByteArrayInputStream;
 
 public class MediaManager {
+    private String currentTitle = "Unknown Title";
+
+    public String getCurrentTitle() {
+        return currentTitle;
+    }
+    public void restorePosition() {
+
+        File song =
+                getCurrentSong();
+
+        File lastSong =
+                LastSongManager.loadSong();
+
+        if (song == null
+                || lastSong == null
+                || !song.equals(lastSong)) {
+            return;
+        }
+
+        double savedPosition = PlaybackPositionManager.loadPosition();
+
+        new Thread(() -> {
+
+            try {
+
+                Thread.sleep(1500);
+
+                vlcManager.seek((long)(savedPosition * 1000));
+
+            } catch (Exception ex) {
+
+                ex.printStackTrace();
+            }
+
+        }).start();
+    }
+
+    public MediaManager() {
+
+        vlcManager.setEndOfMediaListener(() -> {
+            switch (repeatMode) {
+                case ONE -> {
+                    playSong(songs.get(currentSongIndex));
+                }
+                case ALL -> {
+                    File nextSong = nextSong();
+                    if (nextSong != null) {
+                        playSong(nextSong);
+                    }
+                }
+                case OFF -> {
+                    if (currentSongIndex < songs.size() - 1) {
+                        File nextSong = nextSong();
+                        playSong(nextSong);
+                    }
+                }
+            }
+        });
+    }
+
+    public String[] getAudioInfo(File file) {
+
+        try {
+
+            AudioFile audioFile =
+                    AudioFileIO.read(file);
+
+            var header =
+                    audioFile.getAudioHeader();
+
+            int sampleRate =
+                    Integer.parseInt(
+                            header.getSampleRate()
+                    );
+
+            String format;
+
+            if (
+                    (file.getName().toLowerCase().endsWith(".flac")
+                            || file.getName().toLowerCase().endsWith(".m4a"))
+                            && sampleRate > 48000
+            ) {
+
+                format = "Hi-Res Lossless";
+
+            } else if (
+                    file.getName().toLowerCase().endsWith(".flac")
+                            || file.getName().toLowerCase().endsWith(".m4a")
+            ) {
+
+                format = "Lossless";
+
+            } else if (
+                    header.getFormat()
+                            .toLowerCase()
+                            .contains("mp3")
+            ) {
+
+                format = "MP3";
+
+            } else {
+
+                format = header.getFormat();
+            }
+
+            double khz =
+                    sampleRate / 1000.0;
+
+            String details;
+
+            if (file.getName().toLowerCase().endsWith(".m4a")) {
+
+                details =
+                        String.format(
+                                "%.0f kHz • ALAC",
+                                khz
+                        );
+
+            } else if (file.getName().toLowerCase().endsWith(".flac")) {
+
+                details =
+                        String.format(
+                                "%.1f kHz • FLAC",
+                                khz
+                        );
+
+            } else {
+
+                details =
+                        header.getBitRate()
+                                + " kbps";
+            }
+
+            return new String[] {
+                    format,
+                    details
+            };
+
+        } catch (Exception ex) {
+
+            ex.printStackTrace();
+
+            return new String[] {
+                    "Audio",
+                    ""
+            };
+        }
+    }
 
     public enum RepeatMode {
 
@@ -24,6 +177,20 @@ public class MediaManager {
         ALL,
 
         ONE
+    }
+
+    public boolean isVlcSong() {
+        File song = getCurrentSong();
+
+        if (song == null) {
+            return false;
+        }
+
+        String name =
+                song.getName().toLowerCase();
+
+        return name.endsWith(".m4a")
+                || name.endsWith(".flac");
     }
 
     private RepeatMode repeatMode =
@@ -53,7 +220,9 @@ public class MediaManager {
 
     private MediaPlayer mediaPlayer;
     private final VlcMediaManager vlcManager = new VlcMediaManager();
-
+    public VlcMediaManager getVlcManager() {
+        return vlcManager;
+    }
     private Image currentArtwork;
 
     private String currentArtist = "Unknown Artist";
@@ -63,6 +232,116 @@ public class MediaManager {
     }
     public String getCurrentAlbum() {
         return currentAlbum;
+    }
+
+    private void loadMetadata(File file) {
+
+        try {
+
+            AudioFile audioFile =
+                    AudioFileIO.read(file);
+
+            Tag tag =
+                    audioFile.getTag();
+
+            if (tag == null) {
+                return;
+            }
+
+            String title =
+                    tag.getFirst(FieldKey.TITLE);
+
+            String artist =
+                    tag.getFirst(FieldKey.ARTIST);
+
+            String album =
+                    tag.getFirst(FieldKey.ALBUM);
+
+            if (!title.isBlank()) {
+                currentTitle = title;
+            }
+
+            if (!artist.isBlank()) {
+                currentArtist = artist;
+            }
+
+            if (!album.isBlank()) {
+                currentAlbum = album;
+            }
+
+            Artwork artwork =
+                    tag.getFirstArtwork();
+
+            if (artwork != null &&
+                    artwork.getBinaryData() != null) {
+
+                currentArtwork =
+                        new Image(
+                                new ByteArrayInputStream(
+                                        artwork.getBinaryData()
+                                )
+                        );
+            }
+
+        } catch (Exception ex) {
+
+            ex.printStackTrace();
+        }
+    }
+
+    public String getTitle(File file) {
+
+        try {
+
+            AudioFile audioFile =
+                    AudioFileIO.read(file);
+
+            Tag tag = audioFile.getTag();
+
+            if (tag != null) {
+
+                String title =
+                        tag.getFirst(FieldKey.TITLE);
+
+                if (!title.isBlank()) {
+                    return title;
+                }
+            }
+
+        } catch (Exception ignored) {
+        }
+
+        String name = file.getName();
+
+        int dot = name.lastIndexOf('.');
+
+        return dot > 0
+                ? name.substring(0, dot)
+                : name;
+    }
+    public String getArtist(File file) {
+
+        try {
+
+            AudioFile audioFile =
+                    AudioFileIO.read(file);
+
+            Tag tag = audioFile.getTag();
+
+            if (tag != null) {
+
+                String artist =
+                        tag.getFirst(FieldKey.ARTIST);
+
+                if (!artist.isBlank()) {
+                    return artist;
+                }
+            }
+
+        } catch (Exception ignored) {
+        }
+
+        return "Unknown Artist";
     }
 
     private List<File> songs = new ArrayList<>();
@@ -142,6 +421,18 @@ public class MediaManager {
 
     public void seek(double percent) {
 
+        if (isVlcSong()) {
+
+            long duration =
+                    vlcManager.getDuration();
+
+            vlcManager.seek(
+                    (long)(duration * percent)
+            );
+
+            return;
+        }
+
         if (mediaPlayer == null) {
             return;
         }
@@ -159,6 +450,8 @@ public class MediaManager {
         currentArtist = "Unknown Artist";
         currentAlbum = "Unknown Album";
 
+        loadMetadata(file);
+
         currentSongIndex = songs.indexOf(file);
 
         try {
@@ -174,20 +467,23 @@ public class MediaManager {
 
                         if (id3v2.getArtist() != null && !id3v2.getArtist().isBlank()) {
                             currentArtist = id3v2.getArtist();
-
-                        } else {
+                        }
+                        else
+                        {
                             currentArtist = "Unknown Artist";
                         }
-                        if (id3v2.getAlbum() != null &&
-                                !id3v2.getAlbum().isBlank()) {
+                        if (id3v2.getAlbum() != null && !id3v2.getAlbum().isBlank()) {
 
-                            currentAlbum =
-                                    id3v2.getAlbum();
+                            currentAlbum = id3v2.getAlbum();
 
                         } else {
 
-                            currentAlbum =
-                                    "Unknown Album";
+                            currentAlbum = "Unknown Album";
+                        }
+                        if (id3v2.getTitle() != null
+                                && !id3v2.getTitle().isBlank()) {
+
+                            currentTitle = id3v2.getTitle();
                         }
                         byte[] imageData = id3v2.getAlbumImage();
 
@@ -210,14 +506,24 @@ public class MediaManager {
                 ex.printStackTrace();
             }
 
-            Media media = new Media(file.toURI().toString());
             if (
                     file.getName().toLowerCase().endsWith(".flac")
                             ||
                             file.getName().toLowerCase().endsWith(".m4a")
             ) {
+                if (mediaPlayer != null) {
 
+                    mediaPlayer.stop();
+                    mediaPlayer.dispose();
+                    mediaPlayer = null;
+                }
+
+                vlcManager.stop();
+                LastSongManager.saveSong(file);
                 vlcManager.play(file);
+
+
+
 
                 if (songChangeListener != null) {
                     songChangeListener.onSongChanged(file);
@@ -225,6 +531,9 @@ public class MediaManager {
 
                 return;
             }
+            vlcManager.stop();
+            Media media = new Media(file.toURI().toString());
+
 
             if (mediaPlayer != null) {
 

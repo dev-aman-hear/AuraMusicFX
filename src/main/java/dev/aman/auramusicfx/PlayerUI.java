@@ -15,7 +15,10 @@ import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.scene.control.Button;
+
+import java.io.File;
 import java.util.Objects;
+
 
 public class PlayerUI {
 
@@ -161,9 +164,32 @@ public class PlayerUI {
         queueScreen.setManaged(false);
         queueScreen.getChildren().addAll(miniPlayerView.getView(), playlistView.getView());
     }
-    private Scene createScene(StackPane root,VBox controlsOverlay) {
+    private Scene createScene(
+            StackPane root,
+            VBox controlsOverlay,
+            ControlsView controlsView
+    ) {
         Scene scene = new Scene(root, 420, 760);
+        scene.setOnDragOver(event -> {
+            if (event.getDragboard().hasFiles()) {
+                event.acceptTransferModes(javafx.scene.input.TransferMode.COPY);
+            }event.consume();});
+        scene.setOnDragDropped(event -> {
 
+            var db = event.getDragboard();
+            if (db.hasFiles()) {
+                File dropped = db.getFiles().get(0);
+                if (dropped.isDirectory()) {
+                    controlsView.loadFolder(dropped);
+                } else {
+                    controlsView.loadFolder(
+                            dropped.getParentFile()
+                    );
+                }
+            }
+            event.setDropCompleted(true);
+            event.consume();
+        });
         //CREATE FADE ANIMATIONS
         FadeTransition fadeOut = new FadeTransition(Duration.seconds(1), controlsOverlay);
         fadeOut.setToValue(0);
@@ -416,7 +442,60 @@ public class PlayerUI {
 
         showPlayer();
 
-        Scene scene = createScene(root, controlsOverlay);
+        Scene scene = createScene(
+                        root,
+                        controlsOverlay,
+                        controlsView
+                );
+
+        scene.setOnKeyPressed(e -> {
+
+            switch (e.getCode()) {
+
+                case SPACE -> {
+                    controlsView.togglePlayPause();
+                    e.consume();
+                }
+
+                case RIGHT -> {
+                    if (!e.isControlDown()) {
+                        return;
+                    }
+                    controlsView.playNext();
+                    e.consume();
+                }
+
+                case LEFT -> {
+                    if (!e.isControlDown()) {
+                        return;
+                    }
+                    controlsView.playPrevious();
+                    e.consume();
+                }
+
+                case M -> {
+                    if (!e.isControlDown()) {
+                        return;
+                    }
+                    controlsView.toggleMute();
+                    e.consume();
+                }
+
+                case F -> {
+
+                    if (e.isControlDown()) {
+
+                        controlsView.focusSearch();
+
+                        controlsView.getSearchField()
+                                .selectAll();
+
+                        e.consume();
+                    }
+                }
+            }
+        });
+
         scene.setOnMousePressed(event -> {
             xOffset = event.getSceneX();
             yOffset = event.getSceneY();
@@ -430,45 +509,54 @@ public class PlayerUI {
 
                     switch (event.getCode()) {
 
-                        case SPACE -> {
-
-                            controlsView.getPlayButton().fire();
-                            event.consume();
-                        }
-
                         case N -> {
+
+                            if (!event.isControlDown()) {
+                                return;
+                            }
 
                             controlsView.getNextButton().fire();
                             event.consume();
                         }
-
                         case P -> {
+
+                            if (!event.isControlDown()) {
+                                return;
+                            }
 
                             controlsView.getPreviousButton().fire();
                             event.consume();
                         }
 
                         case L -> {
-
+                            if (!event.isControlDown()) {
+                                return;
+                            }
                             showLyrics();
+                            scene.getRoot().requestFocus();
                             event.consume();
                         }
 
                         case Q -> {
-
+                            if (!event.isControlDown()) {
+                                return;
+                            }
                             showQueue();
+                            scene.getRoot().requestFocus();
                             event.consume();
                         }
 
                         case S -> {
 
                             mediaManager.toggleShuffle();
+                            playlistView.refreshButtons();
                             event.consume();
                         }
 
                         case R -> {
 
                             mediaManager.cycleRepeatMode();
+                            playlistView.refreshButtons();
                             event.consume();
                         }
                     }

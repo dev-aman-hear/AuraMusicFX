@@ -5,17 +5,33 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
+import javafx.animation.FadeTransition;
+import javafx.util.Duration;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.shape.Rectangle;
 import javafx.embed.swing.SwingFXUtils;
 import java.awt.image.BufferedImage;
+import java.util.Objects;
+
 import javafx.scene.paint.Color;
 
 public class ArtworkSection {
 
     private VBox root = new VBox(10);
+    private Label qualityFormat = new Label("FORMAT");
+
+    private Label qualityDetails = new Label("DETAILS");
+
+    public void setQuality(
+            String format,
+            String details
+    ) {
+        qualityFormat.setText(format);
+        qualityDetails.setText(details);
+    }
 
     private ImageView artwork = new ImageView();
     Rectangle clip = new Rectangle();
@@ -83,13 +99,41 @@ public class ArtworkSection {
     -fx-background-color:
         rgba(255,255,255,0.10);
 """);
+        qualityFormat.setStyle("""
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-text-fill: white;
+
+    -fx-background-color:
+        rgba(255,255,255,0.12);
+
+    -fx-background-radius: 5;
+
+    -fx-padding: 2 6 2 6;
+""");
+
+        qualityDetails.setStyle("""
+    -fx-font-size: 10px;
+
+    -fx-text-fill:
+        rgba(255,255,255,0.55);
+""");
+        qualityFormat.setMaxWidth(
+                Region.USE_PREF_SIZE
+        );
+
+        qualityDetails.setMaxWidth(
+                Double.MAX_VALUE
+        );
 
         root.setAlignment(Pos.CENTER);
-        artwork.setImage(
-                new Image(
-                        "https://upload.wikimedia.org/wikipedia/en/2/26/Blurred_Lines_cover.png"
-                )
+
+        qualityDetails.setAlignment(
+                Pos.CENTER
         );
+
+        root.setAlignment(Pos.CENTER);
+        artwork.setImage(new Image(Objects.requireNonNull(getClass().getResourceAsStream("/images/default_artwork.png"))));
 
         artwork.setFitWidth(260);
         artwork.setFitHeight(260);
@@ -123,7 +167,7 @@ public class ArtworkSection {
         );
 """);
         songTitle.setStyle("""
-    -fx-font-size: 24px;
+    -fx-font-size: 30px;
 
     -fx-font-weight: bold;
 
@@ -134,12 +178,12 @@ public class ArtworkSection {
     -fx-padding: 12 0 0 0;
 """);
         artist.setStyle("""
-    -fx-font-size: 15px;
+    -fx-font-size: 16px;
 
     -fx-font-weight: 500;
 
     -fx-text-fill:
-        rgba(255,255,255,0.68);
+        rgba(255,255,255,0.75);
 
     -fx-font-family: "Segoe UI";
 """);
@@ -158,30 +202,78 @@ public class ArtworkSection {
                 artwork,
                 songTitle,
                 artist,
-                album
+                qualityFormat,
+                qualityDetails
         );
     }
 
     public void setArtwork(Image image) {
 
-        if (image == null) {
+        Image newImage = image;
 
-            artwork.setImage(
-                    new Image(
-                            "https://upload.wikimedia.org/wikipedia/en/2/26/Blurred_Lines_cover.png"
-                    )
+        if (newImage == null) {
+
+            newImage = new Image(
+                    "https://upload.wikimedia.org/wikipedia/en/2/26/Blurred_Lines_cover.png"
             );
 
             dominantColor.set(Color.PINK);
 
-            return;
+        } else {
+
+            dominantColor.set(
+                    extractColor(newImage)
+            );
         }
 
-        dominantColor.set(
-                extractColor(image)
-        );
+        Color c = dominantColor.get();
 
-        artwork.setImage(image);
+        FadeTransition fadeOut =
+                new FadeTransition(
+                        Duration.millis(180),
+                        artwork
+                );
+
+        fadeOut.setToValue(0);
+
+        Image finalImage = newImage;
+
+        fadeOut.setOnFinished(e -> {
+
+            artwork.setImage(finalImage);
+
+            artwork.setStyle(
+                    String.format(
+                            """
+                            -fx-effect:
+                                dropshadow(
+                                    gaussian,
+                                    rgba(%d,%d,%d,0.65),
+                                    50,
+                                    0.3,
+                                    0,
+                                    0
+                                );
+                            """,
+                            (int)(c.getRed() * 255),
+                            (int)(c.getGreen() * 255),
+                            (int)(c.getBlue() * 255)
+                    )
+            );
+
+            FadeTransition fadeIn =
+                    new FadeTransition(
+                            Duration.millis(250),
+                            artwork
+                    );
+
+            fadeIn.setFromValue(0);
+            fadeIn.setToValue(1);
+
+            fadeIn.play();
+        });
+
+        fadeOut.play();
     }
 
     public VBox getView() {
