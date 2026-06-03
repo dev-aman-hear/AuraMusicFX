@@ -2,6 +2,7 @@ package dev.aman.auramusicfx;
 
 import javafx.animation.FadeTransition;
 import javafx.animation.PauseTransition;
+import javafx.application.Platform;
 import javafx.scene.image.Image;
 import javafx.scene.shape.Rectangle;
 import javafx.util.Duration;
@@ -21,6 +22,7 @@ import java.util.Objects;
 
 
 public class PlayerUI {
+
 
     // Fields
     private double xOffset;
@@ -385,6 +387,25 @@ public class PlayerUI {
 
     //START
     public void start(Stage stage) {
+
+        stage.setOnCloseRequest(event -> {
+
+            try {
+
+                if (mediaManager.isVlcSong()) {
+                    mediaManager.getVlcManager().stop();
+                } else if (mediaManager.getMediaPlayer() != null) {
+                    mediaManager.getMediaPlayer().stop();
+                }
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+
+            Platform.exit();
+            mediaManager.getVlcManager().shutdown();
+            System.exit(0);
+        });
+
         StackPane root = new StackPane();
 
         Rectangle clip = new Rectangle();

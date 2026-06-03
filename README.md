@@ -22,7 +22,11 @@ A modern glassmorphism music player built with JavaFX.
 ## Build
 
 ```bash
-mvn clean package
+.\mvnw.cmd clean package
+
+jpackage --type app-image --name AuraMusicFX --input target --main-jar AuraMusicFX-1.0.0.jar --main-class dev.aman.auramusicfx.Launcher --icon src\main\resources\icons\AuraMusicFX_Ultimate.ico --dest dist
+
+jpackage --type msi --name AuraMusicFX --app-image dist\AuraMusicFX --app-version 2.0 --vendor "Aman" --win-menu --win-shortcut --dest installer
 ```
 
 ## Run

@@ -555,9 +555,28 @@ Features
 
             aboutStage.showAndWait();
         });
-        closeButton.setOnAction(e ->
-                stage.close()
-        );
+        closeButton.setOnAction(e -> {
+
+            try {
+
+                if (mediaManager.isVlcSong()) {
+
+                    mediaManager.getVlcManager().stop();
+
+                } else if (mediaManager.getMediaPlayer() != null) {
+
+                    mediaManager.getMediaPlayer().stop();
+                }
+
+            } catch (Exception ex) {
+
+                ex.printStackTrace();
+            }
+
+            javafx.application.Platform.exit();
+            mediaManager.getVlcManager().shutdown();
+            System.exit(0);
+        });
         closeButton.setStyle("""
     -fx-background-color:
         rgba(255,255,255,0.18);
