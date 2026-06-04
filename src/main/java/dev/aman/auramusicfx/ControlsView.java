@@ -332,6 +332,47 @@ public class ControlsView {
 
         playButton.setText("❚❚");
     }
+    public void openSongFromExplorer(File selectedSong) {
+
+        if (selectedSong == null || !selectedSong.exists()) {
+            return;
+        }
+
+        File folder =
+                selectedSong.getParentFile();
+
+        loadFolder(folder);
+        LastFolderManager.saveFolder(selectedSong.getParentFile());
+        LastSongManager.saveSong(selectedSong);
+        mediaManager.playSong(selectedSong);
+
+        artworkSection.setArtwork(
+                mediaManager.getCurrentArtwork()
+        );
+
+        artworkSection.setSongTitle(
+                mediaManager.getCurrentTitle()
+        );
+
+        artworkSection.setArtist(
+                mediaManager.getCurrentArtist()
+        );
+
+        artworkSection.setAlbum(
+                mediaManager.getCurrentAlbum()
+        );
+
+        lyricsManager.loadLyrics(
+                selectedSong,
+                lyricsView.getLyricsBox()
+        );
+
+        playlistView.setActiveSong(
+                selectedSong
+        );
+
+        playButton.setText("❚❚");
+    }
     private void refreshSeekbar() {
         progressBar.applyCss();
         progressBar.layout();

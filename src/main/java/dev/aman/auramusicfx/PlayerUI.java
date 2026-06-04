@@ -147,6 +147,7 @@ public class PlayerUI {
     private final LyricsHeaderView lyricsHeaderView = new LyricsHeaderView();
 
     // UI Builders
+    private ControlsView controlsView;
     private void buildPlayerScreen(HBox topOverlay, ArtworkSection artworkSection, VBox controlsOverlay) {
         playerScreen.getChildren().addAll(
                 topOverlay,
@@ -350,7 +351,26 @@ public class PlayerUI {
                 stage
         );
     }
+    private void openSongFromExplorer() {
 
+        if (Launcher.startupSong == null) {
+            return;
+        }
+
+        File song =
+                new File(
+                        Launcher.startupSong
+                );
+
+        if (!song.exists()) {
+            return;
+        }
+
+        controlsView.openSongFromExplorer(
+                song
+        );
+
+    }
     private void setupBackgroundBindings(ImageView backgroundImage, Scene scene, ArtworkSection artworkSection) {
         backgroundImage.fitWidthProperty().bind(scene.widthProperty());
         backgroundImage.fitHeightProperty().bind(scene.heightProperty());
@@ -361,6 +381,7 @@ public class PlayerUI {
         stage.setTitle("AuraMusicFX");
         stage.setScene(scene);
         stage.show();
+        Platform.runLater(this::openSongFromExplorer);
         scene.getRoot().requestFocus();
     }
 
@@ -435,6 +456,7 @@ public class PlayerUI {
         initializeScreens();
         lyricsManager.setMediaManager(mediaManager);
         ControlsView controlsView = createControlsView(artworkSection, lyricsView, playlistView, stage);
+        this.controlsView = controlsView;
         controlsView.autoLoadLastFolder(mediaManager, artworkSection, lyricsManager, lyricsView);
 
         bindArtworkData(artworkSection);
