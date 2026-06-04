@@ -17,7 +17,11 @@ A modern glassmorphism music player built with JavaFX.
 
 ## Screenshots
 
-(screenshots here later)
+<img width="420" height="720" alt="1" src="https://github.com/user-attachments/assets/b84207a6-5f08-4247-8d29-aea16be97efb" />
+<img width="420" height="720" alt="3" src="https://github.com/user-attachments/assets/85cea05b-d96f-41db-bcc1-af4867f97500" />
+<img width="420" height="720" alt="4" src="https://github.com/user-attachments/assets/fa333a80-2038-447d-a8f8-54c4df69cf42" />
+<img width="325" height="538" alt="2" src="https://github.com/user-attachments/assets/3c1e3cb0-47d2-48b0-8dd5-af99bf29ad41" />
+
 
 ## Build
 
