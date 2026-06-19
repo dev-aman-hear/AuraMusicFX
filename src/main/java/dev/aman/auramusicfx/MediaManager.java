@@ -19,8 +19,56 @@ import org.jaudiotagger.tag.datatype.Artwork;
 import javafx.scene.image.Image;
 
 import java.io.ByteArrayInputStream;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class MediaManager {
+
+    public static class SongMetadata {
+        public final String title;
+        public final String artist;
+
+        public SongMetadata(String title, String artist) {
+            this.title = title;
+            this.artist = artist;
+        }
+    }
+
+    private final ConcurrentHashMap<File, SongMetadata> metadataCache = new ConcurrentHashMap<>();
+
+    public SongMetadata getSongMetadata(File file) {
+        return metadataCache.computeIfAbsent(file, f -> {
+            String title = "Unknown Title";
+            String artist = "Unknown Artist";
+            try {
+                AudioFile audioFile = AudioFileIO.read(f);
+                Tag tag = audioFile.getTag();
+                if (tag != null) {
+                    String t = tag.getFirst(FieldKey.TITLE);
+                    String a = tag.getFirst(FieldKey.ARTIST);
+                    if (t != null && !t.isBlank()) {
+                        title = t;
+                    } else {
+                        String name = f.getName();
+                        int dot = name.lastIndexOf('.');
+                        title = dot > 0 ? name.substring(0, dot) : name;
+                    }
+                    if (a != null && !a.isBlank()) {
+                        artist = a;
+                    }
+                } else {
+                    String name = f.getName();
+                    int dot = name.lastIndexOf('.');
+                    title = dot > 0 ? name.substring(0, dot) : name;
+                }
+            } catch (Exception ignored) {
+                String name = f.getName();
+                int dot = name.lastIndexOf('.');
+                title = dot > 0 ? name.substring(0, dot) : name;
+            }
+            return new SongMetadata(title, artist);
+        });
+    }
+
     private String currentTitle = "Unknown Title";
 
     public String getCurrentTitle() {
@@ -290,58 +338,11 @@ public class MediaManager {
     }
 
     public String getTitle(File file) {
-
-        try {
-
-            AudioFile audioFile =
-                    AudioFileIO.read(file);
-
-            Tag tag = audioFile.getTag();
-
-            if (tag != null) {
-
-                String title =
-                        tag.getFirst(FieldKey.TITLE);
-
-                if (!title.isBlank()) {
-                    return title;
-                }
-            }
-
-        } catch (Exception ignored) {
-        }
-
-        String name = file.getName();
-
-        int dot = name.lastIndexOf('.');
-
-        return dot > 0
-                ? name.substring(0, dot)
-                : name;
+        return getSongMetadata(file).title;
     }
+
     public String getArtist(File file) {
-
-        try {
-
-            AudioFile audioFile =
-                    AudioFileIO.read(file);
-
-            Tag tag = audioFile.getTag();
-
-            if (tag != null) {
-
-                String artist =
-                        tag.getFirst(FieldKey.ARTIST);
-
-                if (!artist.isBlank()) {
-                    return artist;
-                }
-            }
-
-        } catch (Exception ignored) {
-        }
-
-        return "Unknown Artist";
+        return getSongMetadata(file).artist;
     }
 
     private List<File> songs = new ArrayList<>();

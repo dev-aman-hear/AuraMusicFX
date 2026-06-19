@@ -5,6 +5,7 @@ import javafx.scene.control.Label;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.scene.shape.Rectangle;
 
 public class MiniPlayerView {
 
@@ -23,6 +24,13 @@ public class MiniPlayerView {
         artwork.setFitWidth(56);
         artwork.setFitHeight(56);
         artwork.setPreserveRatio(false);
+
+        Rectangle clip = new Rectangle();
+        clip.widthProperty().bind(artwork.fitWidthProperty());
+        clip.heightProperty().bind(artwork.fitHeightProperty());
+        clip.setArcWidth(16);
+        clip.setArcHeight(16);
+        artwork.setClip(clip);
 
         title = new Label("No song");
         title.setStyle("""

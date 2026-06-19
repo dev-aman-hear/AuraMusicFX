@@ -5,6 +5,7 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
+import javafx.scene.image.PixelReader;
 import javafx.animation.FadeTransition;
 import javafx.util.Duration;
 import javafx.scene.image.ImageView;
@@ -12,13 +13,15 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.shape.Rectangle;
-import javafx.embed.swing.SwingFXUtils;
-import java.awt.image.BufferedImage;
 import java.util.Objects;
 
 import javafx.scene.paint.Color;
 
 public class ArtworkSection {
+
+    private static final Image DEFAULT_ARTWORK_IMAGE = new Image(
+            Objects.requireNonNull(ArtworkSection.class.getResourceAsStream("/images/default_artwork.png"))
+    );
 
     private VBox root = new VBox(10);
     private Label qualityFormat = new Label("FORMAT");
@@ -43,21 +46,23 @@ public class ArtworkSection {
     }
 
     private Color extractColor(Image image) {
-
         if (image == null) {
             return Color.PINK;
         }
 
-        BufferedImage img =
-                SwingFXUtils.fromFXImage(image, null);
+        PixelReader pixelReader = image.getPixelReader();
+        if (pixelReader == null) {
+            return Color.PINK;
+        }
 
         long r = 0, g = 0, b = 0;
         int count = 0;
+        int width = (int) image.getWidth();
+        int height = (int) image.getHeight();
 
-        for (int y = 0; y < img.getHeight(); y += 8) {
-            for (int x = 0; x < img.getWidth(); x += 8) {
-
-                int rgb = img.getRGB(x, y);
+        for (int y = 0; y < height; y += 8) {
+            for (int x = 0; x < width; x += 8) {
+                int rgb = pixelReader.getArgb(x, y);
 
                 r += (rgb >> 16) & 0xff;
                 g += (rgb >> 8) & 0xff;
@@ -65,6 +70,10 @@ public class ArtworkSection {
 
                 count++;
             }
+        }
+
+        if (count == 0) {
+            return Color.PINK;
         }
 
         return Color.rgb(
@@ -212,13 +221,8 @@ public class ArtworkSection {
         Image newImage = image;
 
         if (newImage == null) {
-
-            newImage = new Image(
-                    "https://upload.wikimedia.org/wikipedia/en/2/26/Blurred_Lines_cover.png"
-            );
-
+            newImage = DEFAULT_ARTWORK_IMAGE;
             dominantColor.set(Color.PINK);
-
         } else {
 
             dominantColor.set(

@@ -38,8 +38,8 @@ public class LyricsManager {
     ) {
 
         lyrics.clear();
-
         lyricsBox.getChildren().clear();
+        lastActiveIndex = -1;
 
         try {
 
@@ -166,50 +166,40 @@ public class LyricsManager {
     }
 
     public void updateLyrics(
-
             double currentSeconds,
-
             VBox lyricsBox,
-
             ScrollPane scrollPane
     ) {
 
         int activeIndex = -1;
 
         for (int i = 0; i < lyrics.size(); i++) {
-
-            if (
-                    currentSeconds >=
-                            lyrics.get(i).getTime()
-            ) {
-
+            if (currentSeconds >= lyrics.get(i).getTime()) {
                 activeIndex = i;
             }
         }
 
-        for (int i = 0; i < lyrics.size(); i++) {
+        if (activeIndex == lastActiveIndex) {
+            return;
+        }
+        lastActiveIndex = activeIndex;
 
-            Label label =
-                    (Label) lyricsBox
-                            .getChildren()
-                            .get(i);
+        for (int i = 0; i < lyrics.size(); i++) {
+            Label label = (Label) lyricsBox.getChildren().get(i);
 
             if (i == activeIndex) {
-                if (activeIndex != lastActiveIndex) {
-
-                    lastActiveIndex = activeIndex;
-                    double contentHeight = lyricsBox.getHeight();
-                    double viewportHeight = scrollPane.getViewportBounds().getHeight();
-                    double y = label.getBoundsInParent().getMinY();
-                    double target = (y + label.getHeight() / 2 - viewportHeight / 2) / (contentHeight - viewportHeight);
-                    target = Math.max(0, Math.min(1, target));
-                    if (scrollTimeline != null) {
-                        scrollTimeline.stop();
-                    }
-                    scrollTimeline = new Timeline(new KeyFrame(Duration.millis(450),
-                            new KeyValue(scrollPane.vvalueProperty(), target)));
-                    scrollTimeline.play();
+                double contentHeight = lyricsBox.getHeight();
+                double viewportHeight = scrollPane.getViewportBounds().getHeight();
+                double y = label.getBoundsInParent().getMinY();
+                double target = (y + label.getHeight() / 2 - viewportHeight / 2) / (contentHeight - viewportHeight);
+                target = Math.max(0, Math.min(1, target));
+                if (scrollTimeline != null) {
+                    scrollTimeline.stop();
                 }
+                scrollTimeline = new Timeline(new KeyFrame(Duration.millis(450),
+                        new KeyValue(scrollPane.vvalueProperty(), target)));
+                scrollTimeline.play();
+
                 label.setStyle("""
                             -fx-font-size: 32px;
                             -fx-font-weight: bold;
@@ -221,9 +211,7 @@ public class LyricsManager {
                                     18, 0.2, 0,0 );
                         """);
             } else {
-                int distance =
-                        Math.abs(i - activeIndex);
-
+                int distance = Math.abs(i - activeIndex);
                 double opacity;
 
                 if (distance == 1) {

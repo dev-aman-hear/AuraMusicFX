@@ -6,6 +6,7 @@ import javafx.scene.control.Label;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.scene.shape.Rectangle;
 
 public class LyricsHeaderView {
 
@@ -26,6 +27,13 @@ public class LyricsHeaderView {
         artwork.setFitWidth(70);
         artwork.setFitHeight(70);
         artwork.setPreserveRatio(false);
+
+        Rectangle clip = new Rectangle();
+        clip.widthProperty().bind(artwork.fitWidthProperty());
+        clip.heightProperty().bind(artwork.fitHeightProperty());
+        clip.setArcWidth(20);
+        clip.setArcHeight(20);
+        artwork.setClip(clip);
 
         title = new Label();
         title.setStyle("""

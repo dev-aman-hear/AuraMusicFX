@@ -1,5 +1,6 @@
 package dev.aman.auramusicfx;
 
+import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
@@ -11,8 +12,19 @@ import java.io.File;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class PlaylistView {
+
+    private static final ExecutorService metadataLoader = Executors.newFixedThreadPool(
+            Math.max(2, Runtime.getRuntime().availableProcessors()),
+            runnable -> {
+                Thread thread = new Thread(runnable, "PlaylistMetadataLoader");
+                thread.setDaemon(true);
+                return thread;
+            }
+    );
 
     private final Map<File, Button> songButtons = new HashMap<>();
 
@@ -418,20 +430,30 @@ public class PlaylistView {
         }
         if (activeButton != null) {
             activeButton.setStyle(normalStyle());
-            String oldName =
-                    activeButton.getText()
-                            .replace("▶ ", "")
-                            .replace("♥ ", "");
-
-            activeButton.setText(
-                    "♪ " + oldName
-            );
+            File oldSong = null;
+            for (var entry : songButtons.entrySet()) {
+                if (entry.getValue() == activeButton) {
+                    oldSong = entry.getKey();
+                    break;
+                }
+            }
+            if (oldSong != null) {
+                boolean wasFavorite = favorites.contains(oldSong.getAbsolutePath());
+                String oldTitle = mediaManager.getTitle(oldSong);
+                String oldArtist = mediaManager.getArtist(oldSong);
+                activeButton.setText((wasFavorite ? "♥ " : "♪ ") + oldTitle + "\n" + oldArtist);
+            } else {
+                String oldName = activeButton.getText()
+                        .replace("▶ ", "")
+                        .replace("♥ ", "")
+                        .replace("♪ ", "");
+                activeButton.setText("♪ " + oldName);
+            }
         }
 
         activeButton = button;
         activeButton.setStyle(activeStyle());
         String title = mediaManager.getTitle(song);
-
         String artist = mediaManager.getArtist(song);
 
         activeButton.setText(
@@ -451,6 +473,7 @@ public class PlaylistView {
     ) {
         this.mediaManager = mediaManager;
         songsBox.getChildren().clear();
+        songButtons.clear();
 
         for (File song : songs) {
 
@@ -458,13 +481,17 @@ public class PlaylistView {
 
             boolean favorite = favorites.contains(path);
 
-            String title = mediaManager.getTitle(song);
-            String artist = mediaManager.getArtist(song);
+            String placeholderTitle = song.getName();
+            int dotIdx = placeholderTitle.lastIndexOf('.');
+            if (dotIdx > 0) {
+                placeholderTitle = placeholderTitle.substring(0, dotIdx);
+            }
+
             Button songButton = new Button(
                     (favorite ? "♥ " : "♪ ")
-                            + title
+                            + placeholderTitle
                             + "\n"
-                            + artist
+                            + "Loading details..."
             );
 
             songButton.setWrapText(true);
@@ -494,23 +521,22 @@ public class PlaylistView {
             });
 
             songButton.setOnContextMenuRequested(e -> {
-
-
+                String currentTitle = mediaManager.getTitle(song);
+                String currentArtist = mediaManager.getArtist(song);
                 if (favorites.contains(path)) {
                     favorites.remove(path);
-                    songButton.setText(
-                            "♪ " + title
-                                    + "\n"
-                                    + artist
-                    );
-
+                    if (songButton != activeButton) {
+                        songButton.setText("♪ " + currentTitle + "\n" + currentArtist);
+                    } else {
+                        songButton.setText("▶ " + currentTitle + "\n" + currentArtist);
+                    }
                 } else {
                     favorites.add(path);
-                    songButton.setText(
-                            "♥ " + title
-                                    + "\n"
-                                    + artist
-                    );
+                    if (songButton != activeButton) {
+                        songButton.setText("♥ " + currentTitle + "\n" + currentArtist);
+                    } else {
+                        songButton.setText("▶ " + currentTitle + "\n" + currentArtist);
+                    }
                 }
 
                 FavoritesManager.saveFavorites(favorites);
@@ -521,24 +547,29 @@ public class PlaylistView {
 
                     activeButton.setStyle(normalStyle());
 
-                    String oldName =
-                            activeButton.getText()
-                                    .replace("▶ ", "")
-                                    .replace("♥ ", "");
-                    String activePath = null;
-
+                    File oldSong = null;
                     for (var entry : songButtons.entrySet()) {
-
                         if (entry.getValue() == activeButton) {
-
-                            activePath = entry.getKey().getAbsolutePath();
+                            oldSong = entry.getKey();
                             break;
                         }
                     }
-                    boolean wasFavorite = activePath != null && favorites.contains(activePath);
-                    activeButton.setText((wasFavorite ? "♥ " : "♪ ") + oldName);
+                    if (oldSong != null) {
+                        boolean wasFavorite = favorites.contains(oldSong.getAbsolutePath());
+                        String oldTitle = mediaManager.getTitle(oldSong);
+                        String oldArtist = mediaManager.getArtist(oldSong);
+                        activeButton.setText((wasFavorite ? "♥ " : "♪ ") + oldTitle + "\n" + oldArtist);
+                    } else {
+                        String oldName = activeButton.getText()
+                                .replace("▶ ", "")
+                                .replace("♥ ", "")
+                                .replace("♪ ", "");
+                        activeButton.setText("♪ " + oldName);
+                    }
                 }
                 activeButton = songButton;
+                String title = mediaManager.getTitle(song);
+                String artist = mediaManager.getArtist(song);
                 activeButton.setText(
                         "▶ " + title
                                 + "\n"
@@ -571,6 +602,20 @@ public class PlaylistView {
                 );
             });
             songsBox.getChildren().add(songButton);
+
+            metadataLoader.submit(() -> {
+                String title = mediaManager.getTitle(song);
+                String artist = mediaManager.getArtist(song);
+                Platform.runLater(() -> {
+                    if (songButtons.get(song) == songButton) {
+                        if (songButton != activeButton) {
+                            songButton.setText((favorite ? "♥ " : "♪ ") + title + "\n" + artist);
+                        } else {
+                            songButton.setText("▶ " + title + "\n" + artist);
+                        }
+                    }
+                });
+            });
         }
 
         updateButtonStates();

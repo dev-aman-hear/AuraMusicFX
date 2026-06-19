@@ -2,9 +2,9 @@ package dev.aman.auramusicfx;
 
 public class LyricLine {
 
-    private double time;
+    private final double time;
 
-    private String text;
+    private final String text;
 
     public LyricLine(
             double time,
