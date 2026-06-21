@@ -23,6 +23,39 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class MediaManager {
 
+    private WindowsMediaSession windowsMediaSession;
+
+    public void setWindowsMediaSession(WindowsMediaSession windowsMediaSession) {
+        this.windowsMediaSession = windowsMediaSession;
+    }
+
+    private void publishWindowsMetadata() {
+        if (windowsMediaSession != null) {
+            windowsMediaSession.updateMetadata(currentTitle, currentArtist, currentAlbum);
+        }
+    }
+
+    private void publishWindowsStatus(WindowsMediaSession.PlaybackStatus status) {
+        if (windowsMediaSession != null) {
+            windowsMediaSession.setPlaybackStatus(status);
+        }
+    }
+
+    public void syncWindowsPlaybackStatus() {
+        publishWindowsStatus(
+                isPlaying()
+                        ? WindowsMediaSession.PlaybackStatus.PLAYING
+                        : WindowsMediaSession.PlaybackStatus.PAUSED
+        );
+    }
+
+    public void closeWindowsMediaSession() {
+        if (windowsMediaSession != null) {
+            windowsMediaSession.close();
+            windowsMediaSession = null;
+        }
+    }
+
     public static class SongMetadata {
         public final String title;
         public final String artist;
@@ -448,6 +481,11 @@ public class MediaManager {
 
     public void playSong(File file) {
         currentArtwork = null;
+        String fileName = file.getName();
+        int extensionIndex = fileName.lastIndexOf('.');
+        currentTitle = extensionIndex > 0
+                ? fileName.substring(0, extensionIndex)
+                : fileName;
         currentArtist = "Unknown Artist";
         currentAlbum = "Unknown Album";
 
@@ -507,6 +545,8 @@ public class MediaManager {
                 ex.printStackTrace();
             }
 
+            publishWindowsMetadata();
+
             if (
                     file.getName().toLowerCase().endsWith(".flac")
                             ||
@@ -522,6 +562,7 @@ public class MediaManager {
                 vlcManager.stop();
                 LastSongManager.saveSong(file);
                 vlcManager.play(file);
+                publishWindowsStatus(WindowsMediaSession.PlaybackStatus.PLAYING);
 
 
 
@@ -544,6 +585,16 @@ public class MediaManager {
             }
 
             mediaPlayer = new MediaPlayer(media);
+
+            mediaPlayer.setOnPlaying(() -> publishWindowsStatus(
+                    WindowsMediaSession.PlaybackStatus.PLAYING
+            ));
+            mediaPlayer.setOnPaused(() -> publishWindowsStatus(
+                    WindowsMediaSession.PlaybackStatus.PAUSED
+            ));
+            mediaPlayer.setOnStopped(() -> publishWindowsStatus(
+                    WindowsMediaSession.PlaybackStatus.STOPPED
+            ));
 
             mediaPlayer.setOnError(() -> {
 
@@ -729,6 +780,12 @@ public class MediaManager {
 
     public void pause() {
 
+        if (isVlcSong()) {
+            vlcManager.pause();
+            publishWindowsStatus(WindowsMediaSession.PlaybackStatus.PAUSED);
+            return;
+        }
+
         if (mediaPlayer != null) {
 
             mediaPlayer.pause();
@@ -737,6 +794,12 @@ public class MediaManager {
 
     public void resume() {
 
+        if (isVlcSong()) {
+            vlcManager.resume();
+            publishWindowsStatus(WindowsMediaSession.PlaybackStatus.PLAYING);
+            return;
+        }
+
         if (mediaPlayer != null) {
 
             mediaPlayer.play();
@@ -744,6 +807,15 @@ public class MediaManager {
     }
 
     public void togglePlayPause() {
+
+        if (isVlcSong()) {
+            if (vlcManager.isPlaying()) {
+                pause();
+            } else {
+                resume();
+            }
+            return;
+        }
 
         if (mediaPlayer == null)
             return;
@@ -760,6 +832,10 @@ public class MediaManager {
     }
 
     public boolean isPlaying() {
+
+        if (isVlcSong()) {
+            return vlcManager.isPlaying();
+        }
 
         if (mediaPlayer == null)
             return false;

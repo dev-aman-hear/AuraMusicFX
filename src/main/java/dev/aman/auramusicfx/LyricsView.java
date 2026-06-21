@@ -58,10 +58,6 @@ public class LyricsView {
         return lyricsBox;
     }
 
-    public StackPane getRoot() {
-        return root;
-    }
-
     public StackPane getView() {
 
         return root;

@@ -96,9 +96,6 @@ public class ArtworkSection {
     public void setAlbum(String albumName) {
         album.setText(albumName);
     }
-    public Label getAlbumLabel() {
-        return album;
-    }
     public Label getSongTitleLabel() {
         return songTitle;
     }

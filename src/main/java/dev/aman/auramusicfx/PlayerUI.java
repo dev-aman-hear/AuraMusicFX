@@ -148,6 +148,7 @@ public class PlayerUI {
 
     // UI Builders
     private ControlsView controlsView;
+    private WindowsMediaSession windowsMediaSession;
     private void buildPlayerScreen(HBox topOverlay, ArtworkSection artworkSection, VBox controlsOverlay) {
         playerScreen.getChildren().addAll(
                 topOverlay,
@@ -260,29 +261,6 @@ public class PlayerUI {
 
         return topOverlay;
     }
-
-    /*
-    END
-    private void buildBackground() {}
-    private void setupEvents() {}
-    private void setupAnimations() {}
-
-    private String cleanName(File song) {
-
-        String name = song.getName();
-        int dot = name.lastIndexOf('.');
-        if (dot > 0) {
-            return name.substring(0, dot);
-        }
-        return name;
-    }
-
-    private enum ScreenMode {
-       PLAYER,
-       LYRICS,
-       QUEUE
-   }
-*/
 
     private ImageView createBackgroundImage() {
         ImageView backgroundImage = new ImageView();
@@ -423,6 +401,7 @@ public class PlayerUI {
             }
 
             Platform.exit();
+            mediaManager.closeWindowsMediaSession();
             mediaManager.getVlcManager().shutdown();
             System.exit(0);
         });
@@ -457,6 +436,21 @@ public class PlayerUI {
         lyricsManager.setMediaManager(mediaManager);
         ControlsView controlsView = createControlsView(artworkSection, lyricsView, playlistView, stage);
         this.controlsView = controlsView;
+        windowsMediaSession = new WindowsMediaSession(
+                () -> {
+                    if (!mediaManager.isPlaying()) {
+                        controlsView.togglePlayPause();
+                    }
+                },
+                () -> {
+                    if (mediaManager.isPlaying()) {
+                        controlsView.togglePlayPause();
+                    }
+                },
+                controlsView::playPrevious,
+                controlsView::playNext
+        );
+        mediaManager.setWindowsMediaSession(windowsMediaSession);
         controlsView.autoLoadLastFolder(mediaManager, artworkSection, lyricsManager, lyricsView);
 
         bindArtworkData(artworkSection);

@@ -624,9 +624,6 @@ public class PlaylistView {
         return rootContainer;
     }
 
-    public VBox getSongsBox() {
-        return songsBox;
-    }
     public void scrollToActiveSong() {
 
         if (activeButton == null) {

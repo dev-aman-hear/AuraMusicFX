@@ -45,22 +45,6 @@ public class ControlsView {
 
     private HBox timeRow = new HBox();
 
-    private String cleanName(File song) {
-
-        if (song == null) {
-            return "";
-        }
-
-        String name = song.getName();
-
-        int dot = name.lastIndexOf('.');
-
-        if (dot > 0) {
-            return name.substring(0, dot);
-        }
-
-        return name;
-    }
     private void loadSongsRecursive(File folder, MediaManager mediaManager) {
 
         File[] files = folder.listFiles();
@@ -1080,6 +1064,7 @@ Features
                     playButton.setText("❚❚");
                 }
 
+                mediaManager.syncWindowsPlaybackStatus();
                 return;
             }
 
@@ -1304,10 +1289,6 @@ Features
 
     public HBox getTopBar() {
         return topBar;
-    }
-
-    public Button getPlayButton() {
-        return playButton;
     }
 
     public Button getNextButton() {

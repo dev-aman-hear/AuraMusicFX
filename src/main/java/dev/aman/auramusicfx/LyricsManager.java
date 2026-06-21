@@ -22,10 +22,6 @@ public class LyricsManager {
     private int lastActiveIndex = -1;
     private Timeline scrollTimeline;
 
-    public List<LyricLine> getLyrics() {
-        return lyrics;
-    }
-
     public void setMediaManager(
             MediaManager mediaManager
     ) {
