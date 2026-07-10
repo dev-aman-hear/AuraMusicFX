@@ -271,9 +271,12 @@ public class ArtworkSection {
             fadeIn.setFromValue(0);
             fadeIn.setToValue(1);
 
+            fadeIn.setOnFinished(ev -> artwork.setCache(false));
             fadeIn.play();
         });
 
+        artwork.setCache(true);
+        artwork.setCacheHint(javafx.scene.CacheHint.SPEED);
         fadeOut.play();
     }
 

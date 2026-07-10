@@ -102,30 +102,14 @@ public class LyricsManager {
 
                     double seekTime =
                             totalSeconds;
-
-                    lyricLabel.setOnMouseClicked(e -> {
-
+                    lyricLabel.setOnMouseClicked(e -> {
                         if (mediaManager == null) {
                             return;
                         }
-
-                        if (mediaManager.isVlcSong()) {
-
-                            mediaManager
-                                    .getVlcManager()
-                                    .seek((long)(seekTime * 1000));
-
-                        } else if (mediaManager.getMediaPlayer() != null) {
-
-                            mediaManager.getMediaPlayer()
-                                    .seek(
-                                            Duration.seconds(seekTime)
-                                    );
-                        }
+                        mediaManager.getVlcManager().seek((long)(seekTime * 1000));
                     });
 
                     lyricLabel.setOnMouseEntered(e -> {
-
                         lyricLabel.setScaleX(1.05);
                         lyricLabel.setScaleY(1.05);
                     });

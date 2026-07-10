@@ -1,9 +1,5 @@
 package dev.aman.auramusicfx;
 
-import javafx.scene.media.Media;
-import javafx.scene.media.MediaPlayer;
-import javafx.beans.value.ChangeListener;
-import javafx.util.Duration;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,39 +18,6 @@ import java.io.ByteArrayInputStream;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class MediaManager {
-
-    private WindowsMediaSession windowsMediaSession;
-
-    public void setWindowsMediaSession(WindowsMediaSession windowsMediaSession) {
-        this.windowsMediaSession = windowsMediaSession;
-    }
-
-    private void publishWindowsMetadata() {
-        if (windowsMediaSession != null) {
-            windowsMediaSession.updateMetadata(currentTitle, currentArtist, currentAlbum);
-        }
-    }
-
-    private void publishWindowsStatus(WindowsMediaSession.PlaybackStatus status) {
-        if (windowsMediaSession != null) {
-            windowsMediaSession.setPlaybackStatus(status);
-        }
-    }
-
-    public void syncWindowsPlaybackStatus() {
-        publishWindowsStatus(
-                isPlaying()
-                        ? WindowsMediaSession.PlaybackStatus.PLAYING
-                        : WindowsMediaSession.PlaybackStatus.PAUSED
-        );
-    }
-
-    public void closeWindowsMediaSession() {
-        if (windowsMediaSession != null) {
-            windowsMediaSession.close();
-            windowsMediaSession = null;
-        }
-    }
 
     public static class SongMetadata {
         public final String title;
@@ -107,13 +70,12 @@ public class MediaManager {
     public String getCurrentTitle() {
         return currentTitle;
     }
+
     public void restorePosition() {
 
-        File song =
-                getCurrentSong();
+        File song = getCurrentSong();
 
-        File lastSong =
-                LastSongManager.loadSong();
+        File lastSong = LastSongManager.loadSong();
 
         if (song == null
                 || lastSong == null
@@ -129,7 +91,7 @@ public class MediaManager {
 
                 Thread.sleep(1500);
 
-                vlcManager.seek((long)(savedPosition * 1000));
+                vlcManager.seek((long) (savedPosition * 1000));
 
             } catch (Exception ex) {
 
@@ -166,39 +128,29 @@ public class MediaManager {
 
         try {
 
-            AudioFile audioFile =
-                    AudioFileIO.read(file);
+            AudioFile audioFile = AudioFileIO.read(file);
 
-            var header =
-                    audioFile.getAudioHeader();
+            var header = audioFile.getAudioHeader();
 
-            int sampleRate =
-                    Integer.parseInt(
-                            header.getSampleRate()
-                    );
+            int sampleRate = Integer.parseInt(
+                    header.getSampleRate());
 
             String format;
 
-            if (
-                    (file.getName().toLowerCase().endsWith(".flac")
-                            || file.getName().toLowerCase().endsWith(".m4a"))
-                            && sampleRate > 48000
-            ) {
+            if ((file.getName().toLowerCase().endsWith(".flac")
+                    || file.getName().toLowerCase().endsWith(".m4a"))
+                    && sampleRate > 48000) {
 
                 format = "Hi-Res Lossless";
 
-            } else if (
-                    file.getName().toLowerCase().endsWith(".flac")
-                            || file.getName().toLowerCase().endsWith(".m4a")
-            ) {
+            } else if (file.getName().toLowerCase().endsWith(".flac")
+                    || file.getName().toLowerCase().endsWith(".m4a")) {
 
                 format = "Lossless";
 
-            } else if (
-                    header.getFormat()
-                            .toLowerCase()
-                            .contains("mp3")
-            ) {
+            } else if (header.getFormat()
+                    .toLowerCase()
+                    .contains("mp3")) {
 
                 format = "MP3";
 
@@ -207,32 +159,26 @@ public class MediaManager {
                 format = header.getFormat();
             }
 
-            double khz =
-                    sampleRate / 1000.0;
+            double khz = sampleRate / 1000.0;
 
             String details;
 
             if (file.getName().toLowerCase().endsWith(".m4a")) {
 
-                details =
-                        String.format(
-                                "%.0f kHz • ALAC",
-                                khz
-                        );
+                details = String.format(
+                        "%.0f kHz • ALAC",
+                        khz);
 
             } else if (file.getName().toLowerCase().endsWith(".flac")) {
 
-                details =
-                        String.format(
-                                "%.1f kHz • FLAC",
-                                khz
-                        );
+                details = String.format(
+                        "%.1f kHz • FLAC",
+                        khz);
 
             } else {
 
-                details =
-                        header.getBitRate()
-                                + " kbps";
+                details = header.getBitRate()
+                        + " kbps";
             }
 
             return new String[] {
@@ -260,37 +206,20 @@ public class MediaManager {
         ONE
     }
 
-    public boolean isVlcSong() {
-        File song = getCurrentSong();
+    private RepeatMode repeatMode = RepeatMode.ALL;
 
-        if (song == null) {
-            return false;
-        }
-
-        String name =
-                song.getName().toLowerCase();
-
-        return name.endsWith(".m4a")
-                || name.endsWith(".flac");
-    }
-
-    private RepeatMode repeatMode =
-            RepeatMode.ALL;
     public void cycleRepeatMode() {
 
         switch (repeatMode) {
 
             case OFF ->
-                    repeatMode =
-                            RepeatMode.ALL;
+                repeatMode = RepeatMode.ALL;
 
             case ALL ->
-                    repeatMode =
-                            RepeatMode.ONE;
+                repeatMode = RepeatMode.ONE;
 
             case ONE ->
-                    repeatMode =
-                            RepeatMode.OFF;
+                repeatMode = RepeatMode.OFF;
         }
     }
 
@@ -299,44 +228,61 @@ public class MediaManager {
         return repeatMode;
     }
 
-    private MediaPlayer mediaPlayer;
     private final VlcMediaManager vlcManager = new VlcMediaManager();
+
     public VlcMediaManager getVlcManager() {
         return vlcManager;
     }
+
     private Image currentArtwork;
+    private File currentArtworkFile;
 
     private String currentArtist = "Unknown Artist";
     private String currentAlbum = "Unknown Album";
+
     public String getCurrentArtist() {
         return currentArtist;
     }
+
     public String getCurrentAlbum() {
         return currentAlbum;
+    }
+    
+    public File getCurrentArtworkFile() {
+        return currentArtworkFile;
+    }
+
+    private void saveArtworkToFile(byte[] data) {
+        try {
+            if (currentArtworkFile != null && currentArtworkFile.exists()) {
+                currentArtworkFile.delete();
+            }
+            currentArtworkFile = File.createTempFile("auramusicfx_artwork", ".jpg");
+            currentArtworkFile.deleteOnExit();
+            java.nio.file.Files.write(currentArtworkFile.toPath(), data);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            currentArtworkFile = null;
+        }
     }
 
     private void loadMetadata(File file) {
 
         try {
 
-            AudioFile audioFile =
-                    AudioFileIO.read(file);
+            AudioFile audioFile = AudioFileIO.read(file);
 
-            Tag tag =
-                    audioFile.getTag();
+            Tag tag = audioFile.getTag();
 
             if (tag == null) {
                 return;
             }
 
-            String title =
-                    tag.getFirst(FieldKey.TITLE);
+            String title = tag.getFirst(FieldKey.TITLE);
 
-            String artist =
-                    tag.getFirst(FieldKey.ARTIST);
+            String artist = tag.getFirst(FieldKey.ARTIST);
 
-            String album =
-                    tag.getFirst(FieldKey.ALBUM);
+            String album = tag.getFirst(FieldKey.ALBUM);
 
             if (!title.isBlank()) {
                 currentTitle = title;
@@ -350,18 +296,17 @@ public class MediaManager {
                 currentAlbum = album;
             }
 
-            Artwork artwork =
-                    tag.getFirstArtwork();
+            Artwork artwork = tag.getFirstArtwork();
 
             if (artwork != null &&
                     artwork.getBinaryData() != null) {
 
-                currentArtwork =
-                        new Image(
-                                new ByteArrayInputStream(
-                                        artwork.getBinaryData()
-                                )
-                        );
+                byte[] data = artwork.getBinaryData();
+                saveArtworkToFile(data);
+                
+                currentArtwork = new Image(
+                        new ByteArrayInputStream(data),
+                        800, 800, true, true);
             }
 
         } catch (Exception ex) {
@@ -382,6 +327,7 @@ public class MediaManager {
 
     private int currentSongIndex = -1;
     private boolean shuffleEnabled = false;
+
     public boolean isShuffleEnabled() {
         return shuffleEnabled;
     }
@@ -390,18 +336,10 @@ public class MediaManager {
         shuffleEnabled = !shuffleEnabled;
     }
 
+    private final List<SongChangeListener> songChangeListeners = new ArrayList<>();
 
-    private ChangeListener<Duration>
-            lyricsListener;
-    private SongChangeListener
-            songChangeListener;
-    public void setSongChangeListener(
-
-            SongChangeListener listener
-    ) {
-
-        this.songChangeListener =
-                listener;
+    public void addSongChangeListener(SongChangeListener listener) {
+        songChangeListeners.add(listener);
     }
 
     public Image getCurrentArtwork() {
@@ -418,69 +356,20 @@ public class MediaManager {
         return songs;
     }
 
-    public MediaPlayer getMediaPlayer() {
-        return mediaPlayer;
-    }
-
     public void clearSongs() {
 
         songs.clear();
     }
-    public void setLyricsListener(
-
-            ChangeListener<Duration> listener
-    ) {
-
-        if (
-                mediaPlayer != null
-                        && lyricsListener != null
-        ) {
-
-            mediaPlayer.currentTimeProperty()
-                    .removeListener(
-                            lyricsListener
-                    );
-        }
-
-        lyricsListener = listener;
-
-        if (mediaPlayer != null) {
-
-            mediaPlayer.currentTimeProperty()
-                    .addListener(
-                            lyricsListener
-                    );
-        }
-    }
 
     public void seek(double percent) {
-
-        if (isVlcSong()) {
-
-            long duration =
-                    vlcManager.getDuration();
-
-            vlcManager.seek(
-                    (long)(duration * percent)
-            );
-
-            return;
-        }
-
-        if (mediaPlayer == null) {
-            return;
-        }
-
-        Duration total =
-                mediaPlayer.getTotalDuration();
-
-        mediaPlayer.seek(
-                total.multiply(percent)
-        );
+        long duration = vlcManager.getDuration();
+        vlcManager.seek((long) (duration * percent));
     }
 
     public void playSong(File file) {
         currentArtwork = null;
+        currentArtworkFile = null;
+
         String fileName = file.getName();
         int extensionIndex = fileName.lastIndexOf('.');
         currentTitle = extensionIndex > 0
@@ -490,230 +379,80 @@ public class MediaManager {
         currentAlbum = "Unknown Album";
 
         loadMetadata(file);
-
-        currentSongIndex = songs.indexOf(file);
-
+        int index = songs.indexOf(file);
+        if (index < 0) {
+            songs.add(file);
+            index = songs.size() - 1;
+        }
+        currentSongIndex = index;
         try {
-            try {
 
-                if (file.getName().toLowerCase().endsWith(".mp3")) {
+            if (file.getName().toLowerCase().endsWith(".mp3")) {
 
-                    Mp3File mp3 = new Mp3File(file);
+                Mp3File mp3 = new Mp3File(file);
 
-                    if (mp3.hasId3v2Tag()) {
+                if (mp3.hasId3v2Tag()) {
 
-                        ID3v2 id3v2 = mp3.getId3v2Tag();
+                    ID3v2 id3v2 = mp3.getId3v2Tag();
 
-                        if (id3v2.getArtist() != null && !id3v2.getArtist().isBlank()) {
-                            currentArtist = id3v2.getArtist();
-                        }
-                        else
-                        {
-                            currentArtist = "Unknown Artist";
-                        }
-                        if (id3v2.getAlbum() != null && !id3v2.getAlbum().isBlank()) {
+                    if (id3v2.getArtist() != null && !id3v2.getArtist().isBlank()) {
+                        currentArtist = id3v2.getArtist();
+                    } else {
+                        currentArtist = "Unknown Artist";
+                    }
+                    if (id3v2.getAlbum() != null && !id3v2.getAlbum().isBlank()) {
 
-                            currentAlbum = id3v2.getAlbum();
+                        currentAlbum = id3v2.getAlbum();
 
-                        } else {
+                    } else {
 
-                            currentAlbum = "Unknown Album";
-                        }
-                        if (id3v2.getTitle() != null
-                                && !id3v2.getTitle().isBlank()) {
+                        currentAlbum = "Unknown Album";
+                    }
+                    if (id3v2.getTitle() != null
+                            && !id3v2.getTitle().isBlank()) {
 
-                            currentTitle = id3v2.getTitle();
-                        }
-                        byte[] imageData = id3v2.getAlbumImage();
+                        currentTitle = id3v2.getTitle();
+                    }
+                    byte[] imageData = id3v2.getAlbumImage();
 
-                        if (imageData != null) {
-
-                            currentArtwork = new Image(
-
-                                    new ByteArrayInputStream(imageData)
-                            );
-                        }
+                    if (imageData != null) {
+                        saveArtworkToFile(imageData);
+                        currentArtwork = new Image(
+                                new ByteArrayInputStream(imageData),
+                                800, 800, true, true);
                     }
                 }
-            } catch (Exception ex) {
-
-                System.out.println(
-                        "Cannot play: "
-                                + file.getName()
-                );
-
-                ex.printStackTrace();
             }
-
-            publishWindowsMetadata();
-
-            if (
-                    file.getName().toLowerCase().endsWith(".flac")
-                            ||
-                            file.getName().toLowerCase().endsWith(".m4a")
-            ) {
-                if (mediaPlayer != null) {
-
-                    mediaPlayer.stop();
-                    mediaPlayer.dispose();
-                    mediaPlayer = null;
-                }
-
-                vlcManager.stop();
-                LastSongManager.saveSong(file);
-                vlcManager.play(file);
-                publishWindowsStatus(WindowsMediaSession.PlaybackStatus.PLAYING);
-
-
-
-
-                if (songChangeListener != null) {
-                    songChangeListener.onSongChanged(file);
-                }
-
-                return;
-            }
-            vlcManager.stop();
-            Media media = new Media(file.toURI().toString());
-
-
-            if (mediaPlayer != null) {
-
-                mediaPlayer.stop();
-
-                mediaPlayer.dispose();
-            }
-
-            mediaPlayer = new MediaPlayer(media);
-
-            mediaPlayer.setOnPlaying(() -> publishWindowsStatus(
-                    WindowsMediaSession.PlaybackStatus.PLAYING
-            ));
-            mediaPlayer.setOnPaused(() -> publishWindowsStatus(
-                    WindowsMediaSession.PlaybackStatus.PAUSED
-            ));
-            mediaPlayer.setOnStopped(() -> publishWindowsStatus(
-                    WindowsMediaSession.PlaybackStatus.STOPPED
-            ));
-
-            mediaPlayer.setOnError(() -> {
-
-                System.out.println(
-                        "MediaPlayer Error: "
-                                + mediaPlayer.getError()
-                );
-
-                Platform.runLater(() -> {
-
-                    javafx.scene.control.Alert alert =
-                            new javafx.scene.control.Alert(
-                                    javafx.scene.control.Alert.AlertType.ERROR
-                            );
-
-                    alert.setHeaderText(
-                            "Unsupported Audio Format"
-                    );
-
-                    alert.setContentText(
-                            file.getName()
-                                    + "\n\nThis file cannot be played by JavaFX."
-                    );
-
-                    alert.showAndWait();
-                });
-            });
-            mediaPlayer.setOnReady(() -> {
-
-                File lastSong =
-                        LastSongManager.loadSong();
-
-                if (
-                        lastSong != null &&
-                                lastSong.equals(file)
-                ) {
-
-                    double savedPosition =
-                            PlaybackPositionManager.loadPosition();
-
-                    if (savedPosition > 0) {
-
-                        mediaPlayer.seek(
-                                Duration.seconds(savedPosition)
-                        );
-                    }
-                }
-            });
-            mediaPlayer.play();
-            LastSongManager.saveSong(file);
-            mediaPlayer.currentTimeProperty().addListener((obs, oldTime, newTime) -> {
-                PlaybackPositionManager.savePosition(newTime.toSeconds());
-            });
-
-            if (songChangeListener != null) {
-
-                songChangeListener.onSongChanged(file);
-            }
-            mediaPlayer.setOnEndOfMedia(() -> {
-
-                switch (repeatMode) {
-
-                    case ONE -> {
-
-                        playSong(
-                                songs.get(currentSongIndex)
-                        );
-                    }
-
-                    case ALL -> {
-
-                        File nextSong =
-                                nextSong();
-
-                        if (nextSong != null) {
-
-                            playSong(nextSong);
-                        }
-                    }
-
-                    case OFF -> {
-
-                        if (currentSongIndex
-                                < songs.size() - 1) {
-
-                            File nextSong =
-                                    nextSong();
-
-                            playSong(nextSong);
-                        }
-                    }
-                }
-            });
         } catch (Exception ex) {
 
+            System.out.println(
+                    "Cannot play: "
+                            + file.getName());
+
+            ex.printStackTrace();
+        }
+
+        try {
+            vlcManager.stop();
+            LastSongManager.saveSong(file);
+            vlcManager.play(file);
+
+            for (SongChangeListener listener : songChangeListeners) {
+                listener.onSongChanged(file);
+            }
+        } catch (Exception ex) {
             Platform.runLater(() -> {
-
-                javafx.scene.control.Alert alert =
-                        new javafx.scene.control.Alert(
-                                javafx.scene.control.Alert.AlertType.ERROR
-                        );
-
-                alert.setHeaderText(
-                        "Unsupported Audio Format"
-                );
-
+                javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
+                        javafx.scene.control.Alert.AlertType.ERROR);
+                alert.setHeaderText("Playback Error");
                 alert.setContentText(
-                        file.getName()
-                                + "\n\nThis file cannot be played by JavaFX."
-                );
-
+                        file.getName() + "\n\nAn error occurred while playing this file.");
                 alert.showAndWait();
             });
-
-            return;
         }
     }
 
-//interface
+    // interface
 
     public interface SongChangeListener {
 
@@ -722,11 +461,17 @@ public class MediaManager {
 
     public File getCurrentSong() {
 
-        if (songs.isEmpty())
+        if (songs.isEmpty()) {
             return null;
+        }
+
+        if (currentSongIndex < 0 || currentSongIndex >= songs.size()) {
+            return null;
+        }
 
         return songs.get(currentSongIndex);
     }
+
     public File previousSong() {
 
         if (songs.isEmpty())
@@ -754,16 +499,12 @@ public class MediaManager {
 
             do {
 
-                randomIndex =
-                        (int)(Math.random() * songs.size());
+                randomIndex = (int) (Math.random() * songs.size());
 
-            } while (
-                    songs.size() > 1 &&
-                            randomIndex == currentSongIndex
-            );
+            } while (songs.size() > 1 &&
+                    randomIndex == currentSongIndex);
 
-            currentSongIndex =
-                    randomIndex;
+            currentSongIndex = randomIndex;
 
         } else {
 
@@ -779,69 +520,35 @@ public class MediaManager {
     }
 
     public void pause() {
-
-        if (isVlcSong()) {
-            vlcManager.pause();
-            publishWindowsStatus(WindowsMediaSession.PlaybackStatus.PAUSED);
-            return;
-        }
-
-        if (mediaPlayer != null) {
-
-            mediaPlayer.pause();
-        }
+        vlcManager.pause();
     }
 
     public void resume() {
-
-        if (isVlcSong()) {
-            vlcManager.resume();
-            publishWindowsStatus(WindowsMediaSession.PlaybackStatus.PLAYING);
-            return;
-        }
-
-        if (mediaPlayer != null) {
-
-            mediaPlayer.play();
-        }
+        vlcManager.resume();
     }
 
     public void togglePlayPause() {
-
-        if (isVlcSong()) {
-            if (vlcManager.isPlaying()) {
-                pause();
-            } else {
-                resume();
-            }
-            return;
-        }
-
-        if (mediaPlayer == null)
-            return;
-
-        if (mediaPlayer.getStatus()
-                == javafx.scene.media.MediaPlayer.Status.PLAYING) {
-
-            mediaPlayer.pause();
-
+        if (vlcManager.isPlaying()) {
+            pause();
         } else {
-
-            mediaPlayer.play();
+            resume();
         }
     }
 
     public boolean isPlaying() {
+        return vlcManager.isPlaying();
+    }
 
-        if (isVlcSong()) {
-            return vlcManager.isPlaying();
-        }
+    public double getCurrentDurationSeconds() {
+        return vlcManager.getDuration() / 1000.0;
+    }
 
-        if (mediaPlayer == null)
-            return false;
+    public double getCurrentPositionSeconds() {
+        return vlcManager.getCurrentTime() / 1000.0;
+    }
 
-        return mediaPlayer.getStatus()
-                == javafx.scene.media.MediaPlayer.Status.PLAYING;
+    public void seekToSeconds(double seconds) {
+        vlcManager.seek((long) (seconds * 1000));
     }
 
 }

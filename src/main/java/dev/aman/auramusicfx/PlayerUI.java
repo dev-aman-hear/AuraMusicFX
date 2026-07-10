@@ -20,9 +20,7 @@ import javafx.scene.control.Button;
 import java.io.File;
 import java.util.Objects;
 
-
 public class PlayerUI {
-
 
     // Fields
     private double xOffset;
@@ -36,7 +34,7 @@ public class PlayerUI {
     private VBox createControlsOverlay(ControlsView controlsView) {
         VBox controlsOverlay = new VBox(12);
         StackPane.setAlignment(controlsOverlay, Pos.BOTTOM_CENTER);
-        controlsOverlay.setPadding(new Insets(0,0,24,0));
+        controlsOverlay.setPadding(new Insets(0, 0, 24, 0));
         controlsOverlay.getChildren().addAll(controlsView.getProgressSection(), controlsView.getControlsSection());
         controlsOverlay.setVisible(true);
         controlsOverlay.setManaged(true);
@@ -58,6 +56,7 @@ public class PlayerUI {
 
         updateNavigationState();
     }
+
     private void showLyrics() {
         if (lyricsScreen.isVisible()) {
             showPlayer();
@@ -74,6 +73,7 @@ public class PlayerUI {
 
         updateNavigationState();
     }
+
     private void showQueue() {
         if (queueScreen.isVisible()) {
             showPlayer();
@@ -90,46 +90,47 @@ public class PlayerUI {
 
         updateNavigationState();
     }
+
     private void updateNavigationState() {
 
         String normal = """
-    -fx-background-color:
-        rgba(0,0,0,0.28);
+                    -fx-background-color:
+                        rgba(0,0,0,0.28);
 
-    -fx-background-radius: 20;
+                    -fx-background-radius: 20;
 
-    -fx-text-fill: white;
+                    -fx-text-fill: white;
 
-    -fx-font-size: 14px;
+                    -fx-font-size: 14px;
 
-    -fx-font-weight: bold;
+                    -fx-font-weight: bold;
 
-    -fx-padding: 10 22 10 22;
-""";
+                    -fx-padding: 10 22 10 22;
+                """;
 
         String active = """
-    -fx-background-color: white;
+                    -fx-background-color: white;
 
-    -fx-background-radius: 20;
+                    -fx-background-radius: 20;
 
-    -fx-text-fill: #202020;
+                    -fx-text-fill: #202020;
 
-    -fx-font-size: 14px;
+                    -fx-font-size: 14px;
 
-    -fx-font-weight: bold;
+                    -fx-font-weight: bold;
 
-    -fx-padding: 10 22 10 22;
+                    -fx-padding: 10 22 10 22;
 
-    -fx-effect:
-        dropshadow(
-            gaussian,
-            rgba(255,255,255,0.6),
-            16,
-            0.4,
-            0,
-            0
-        );
-""";
+                    -fx-effect:
+                        dropshadow(
+                            gaussian,
+                            rgba(255,255,255,0.6),
+                            16,
+                            0.4,
+                            0,
+                            0
+                        );
+                """;
 
         lyricsBtn.setStyle(normal);
         queueBtn.setStyle(normal);
@@ -148,36 +149,39 @@ public class PlayerUI {
 
     // UI Builders
     private ControlsView controlsView;
-    private WindowsMediaSession windowsMediaSession;
+
     private void buildPlayerScreen(HBox topOverlay, ArtworkSection artworkSection, VBox controlsOverlay) {
         playerScreen.getChildren().addAll(
                 topOverlay,
                 artworkSection.getView(),
-                controlsOverlay
-        );
+                controlsOverlay);
     }
+
     private void buildLyricsScreen(LyricsHeaderView lyricsHeaderView, LyricsView lyricsView) {
-        lyricsScreen.setPadding(new Insets(80,20,24,20));
+        lyricsScreen.setPadding(new Insets(80, 20, 24, 20));
         lyricsScreen.getChildren().addAll(lyricsHeaderView.getView(), lyricsView.getView());
     }
+
     private void buildQueueScreen(PlaylistView playlistView) {
         queueScreen.setAlignment(Pos.TOP_CENTER);
         playlistView.getView().prefWidthProperty().bind(queueScreen.widthProperty());
-        queueScreen.setPadding(new Insets(80,20,24,20));
+        queueScreen.setPadding(new Insets(80, 20, 24, 20));
         queueScreen.setVisible(false);
         queueScreen.setManaged(false);
         queueScreen.getChildren().addAll(miniPlayerView.getView(), playlistView.getView());
     }
+
     private Scene createScene(
             StackPane root,
             VBox controlsOverlay,
-            ControlsView controlsView
-    ) {
+            ControlsView controlsView) {
         Scene scene = new Scene(root, 420, 760);
         scene.setOnDragOver(event -> {
             if (event.getDragboard().hasFiles()) {
                 event.acceptTransferModes(javafx.scene.input.TransferMode.COPY);
-            }event.consume();});
+            }
+            event.consume();
+        });
         scene.setOnDragDropped(event -> {
 
             var db = event.getDragboard();
@@ -187,21 +191,22 @@ public class PlayerUI {
                     controlsView.loadFolder(dropped);
                 } else {
                     controlsView.loadFolder(
-                            dropped.getParentFile()
-                    );
+                            dropped.getParentFile());
                 }
             }
             event.setDropCompleted(true);
             event.consume();
         });
-        //CREATE FADE ANIMATIONS
+        // CREATE FADE ANIMATIONS
         FadeTransition fadeOut = new FadeTransition(Duration.seconds(1), controlsOverlay);
         fadeOut.setToValue(0);
         FadeTransition fadeIn = new FadeTransition(Duration.millis(220), controlsOverlay);
         fadeIn.setToValue(1);
         PauseTransition idle = new PauseTransition(Duration.seconds(4));
-        idle.setOnFinished(e -> {fadeOut.play();});
-        //SHOW UI ON MOUSE MOVE
+        idle.setOnFinished(e -> {
+            fadeOut.play();
+        });
+        // SHOW UI ON MOUSE MOVE
         root.setOnMouseMoved(e -> {
             fadeOut.stop();
             controlsOverlay.setOpacity(1);
@@ -212,26 +217,28 @@ public class PlayerUI {
         });
 
         scene.getStylesheets().add(Objects.requireNonNull(getClass().getResource("/styles.css")).toExternalForm());
-        scene.setFill(Color.TRANSPARENT);return scene;
+        scene.setFill(Color.TRANSPARENT);
+        return scene;
     }
+
     private HBox createBottomNavigation(Runnable lyricsAction, Runnable queueAction) {
 
         lyricsBtn = new Button("Lyrics");
         queueBtn = new Button("Queue");
         String navStyle = """
-    -fx-background-color:
-        rgba(255,255,255,0.55);
+                    -fx-background-color:
+                        rgba(255,255,255,0.55);
 
-    -fx-background-radius: 20;
+                    -fx-background-radius: 20;
 
-    -fx-text-fill: #202020;
+                    -fx-text-fill: #202020;
 
-    -fx-font-size: 14px;
+                    -fx-font-size: 14px;
 
-    -fx-font-weight: bold;
+                    -fx-font-weight: bold;
 
-    -fx-padding: 10 22 10 22;
-""";
+                    -fx-padding: 10 22 10 22;
+                """;
         lyricsBtn.setStyle(navStyle);
         queueBtn.setStyle(navStyle);
 
@@ -249,11 +256,11 @@ public class PlayerUI {
         nav.setPickOnBounds(false);
         nav.getChildren().addAll(
                 lyricsBtn,
-                queueBtn
-        );
+                queueBtn);
 
         return nav;
     }
+
     private HBox createTopOverlay(ControlsView controlsView) {
         HBox topOverlay = new HBox();
         topOverlay.setAlignment(Pos.CENTER);
@@ -268,32 +275,35 @@ public class PlayerUI {
         backgroundImage.setOpacity(0.75);
         backgroundImage.setEffect(new GaussianBlur(120));
 
+        backgroundImage.setCache(true);
+        backgroundImage.setCacheHint(javafx.scene.CacheHint.SPEED);
+
         return backgroundImage;
     }
 
-    //BINDING
+    // BINDING
     private void bindArtworkData(ArtworkSection artworkSection) {
 
-    //MINIPLAYER
+        // MINIPLAYER
 
-    miniPlayerView.getArtwork().imageProperty().bind(
-                    artworkSection.getArtwork().imageProperty());
+        miniPlayerView.getArtwork().imageProperty().bind(
+                artworkSection.getArtwork().imageProperty());
 
-    miniPlayerView.getTitle().textProperty().bind(
-                    artworkSection.getSongTitleLabel().textProperty());
+        miniPlayerView.getTitle().textProperty().bind(
+                artworkSection.getSongTitleLabel().textProperty());
 
-    miniPlayerView.getArtist().textProperty().bind(
-                    artworkSection.getArtistLabel().textProperty());
+        miniPlayerView.getArtist().textProperty().bind(
+                artworkSection.getArtistLabel().textProperty());
 
-    //LYRICHEADER
-    lyricsHeaderView.getArtwork().imageProperty().bind(
-                    artworkSection.getArtwork().imageProperty());
-    lyricsHeaderView.getTitle().textProperty().bind(
-                    artworkSection.getSongTitleLabel().textProperty());
-    lyricsHeaderView.getArtist().textProperty().bind
-                    (artworkSection.getArtistLabel().textProperty());
-    //END
-}
+        // LYRICHEADER
+        lyricsHeaderView.getArtwork().imageProperty().bind(
+                artworkSection.getArtwork().imageProperty());
+        lyricsHeaderView.getTitle().textProperty().bind(
+                artworkSection.getSongTitleLabel().textProperty());
+        lyricsHeaderView.getArtist().textProperty().bind(artworkSection.getArtistLabel().textProperty());
+        // END
+    }
+
     private void initializeScreens() {
         playerScreen = new VBox(12);
         lyricsScreen = new VBox(20);
@@ -302,14 +312,16 @@ public class PlayerUI {
         playerScreen.setAlignment(Pos.TOP_CENTER);
         playerScreen.setPadding(new Insets(28));
         playerScreen.setMaxHeight(720);
-        playerScreen.setMaxWidth(420);}
+        playerScreen.setMaxWidth(420);
+    }
 
     private void setupMiniPlayer() {
-        miniPlayerView.getView().setPadding(new Insets(10,20,10,20));
+        miniPlayerView.getView().setPadding(new Insets(10, 20, 10, 20));
         miniPlayerView.getView().setMaxWidth(Double.MAX_VALUE);
     }
+
     private void buildScreens(ArtworkSection artworkSection, LyricsView lyricsView,
-                              PlaylistView playlistView, HBox topOverlay, VBox controlsOverlay) {
+            PlaylistView playlistView, HBox topOverlay, VBox controlsOverlay) {
         buildPlayerScreen(topOverlay, artworkSection, controlsOverlay);
         buildLyricsScreen(lyricsHeaderView, lyricsView);
         buildQueueScreen(playlistView);
@@ -319,41 +331,41 @@ public class PlayerUI {
     private final LyricsView lyricsView = new LyricsView();
     private final PlaylistView playlistView = new PlaylistView();
 
-    private ControlsView createControlsView(ArtworkSection artworkSection, LyricsView lyricsView, PlaylistView playlistView, Stage stage) {
+    private ControlsView createControlsView(ArtworkSection artworkSection, LyricsView lyricsView,
+            PlaylistView playlistView, Stage stage) {
         return new ControlsView(
                 mediaManager,
                 artworkSection,
                 lyricsManager,
                 lyricsView,
                 playlistView,
-                stage
-        );
+                stage);
     }
+
     private void openSongFromExplorer() {
 
         if (Launcher.startupSong == null) {
             return;
         }
 
-        File song =
-                new File(
-                        Launcher.startupSong
-                );
+        File song = new File(
+                Launcher.startupSong);
 
         if (!song.exists()) {
             return;
         }
 
         controlsView.openSongFromExplorer(
-                song
-        );
+                song);
 
     }
+
     private void setupBackgroundBindings(ImageView backgroundImage, Scene scene, ArtworkSection artworkSection) {
         backgroundImage.fitWidthProperty().bind(scene.widthProperty());
         backgroundImage.fitHeightProperty().bind(scene.heightProperty());
         artworkSection.bindBackground(backgroundImage);
     }
+
     private void setupStage(Stage stage, Scene scene) {
         stage.initStyle(StageStyle.TRANSPARENT);
         stage.setTitle("AuraMusicFX");
@@ -364,6 +376,7 @@ public class PlayerUI {
     }
 
     private final MediaManager mediaManager = new MediaManager();
+    private SMTCManager smtcManager;
     private final LyricsManager lyricsManager = new LyricsManager();
 
     private Pane createGlassOverlay() {
@@ -371,37 +384,29 @@ public class PlayerUI {
         Pane overlay = new Pane();
 
         overlay.setStyle("""
-    -fx-background-color:
-        linear-gradient(
-            to bottom,
-            rgba(255,255,255,0.10),
-            rgba(255,255,255,0.03)
-        );
+                    -fx-background-color:
+                        linear-gradient(
+                            to bottom,
+                            rgba(255,255,255,0.10),
+                            rgba(255,255,255,0.03)
+                        );
 
-    -fx-background-radius: 28;
-""");
+                    -fx-background-radius: 28;
+                """);
 
         return overlay;
     }
 
-    //START
+    // START
     public void start(Stage stage) {
 
         stage.setOnCloseRequest(event -> {
-
             try {
-
-                if (mediaManager.isVlcSong()) {
-                    mediaManager.getVlcManager().stop();
-                } else if (mediaManager.getMediaPlayer() != null) {
-                    mediaManager.getMediaPlayer().stop();
-                }
+                mediaManager.getVlcManager().stop();
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
-
             Platform.exit();
-            mediaManager.closeWindowsMediaSession();
             mediaManager.getVlcManager().shutdown();
             System.exit(0);
         });
@@ -422,35 +427,25 @@ public class PlayerUI {
         Pane overlay = createGlassOverlay();
         artworkSection.dominantColorProperty().addListener((obs, oldColor, color) -> {
 
-                    String css = String.format(
-                            "-fx-background-color: rgba(%d,%d,%d,0.25);",
-                            (int)(color.getRed()*255),
-                            (int)(color.getGreen()*255),
-                            (int)(color.getBlue()*255)
-                    );
+            String css = String.format(
+                    "-fx-background-color: rgba(%d,%d,%d,0.25);",
+                    (int) (color.getRed() * 255),
+                    (int) (color.getGreen() * 255),
+                    (int) (color.getBlue() * 255));
 
-                    overlay.setStyle(css);
-                });
+            overlay.setStyle(css);
+        });
 
         initializeScreens();
+
         lyricsManager.setMediaManager(mediaManager);
         ControlsView controlsView = createControlsView(artworkSection, lyricsView, playlistView, stage);
+
         this.controlsView = controlsView;
-        windowsMediaSession = new WindowsMediaSession(
-                () -> {
-                    if (!mediaManager.isPlaying()) {
-                        controlsView.togglePlayPause();
-                    }
-                },
-                () -> {
-                    if (mediaManager.isPlaying()) {
-                        controlsView.togglePlayPause();
-                    }
-                },
-                controlsView::playPrevious,
-                controlsView::playNext
-        );
-        mediaManager.setWindowsMediaSession(windowsMediaSession);
+
+        smtcManager = new SMTCManager(mediaManager, controlsView);
+        smtcManager.init();
+
         controlsView.autoLoadLastFolder(mediaManager, artworkSection, lyricsManager, lyricsView);
 
         bindArtworkData(artworkSection);
@@ -468,7 +463,7 @@ public class PlayerUI {
         HBox bottomNavigation = createBottomNavigation(this::showLyrics, this::showQueue);
         updateNavigationState();
         StackPane.setAlignment(bottomNavigation, Pos.BOTTOM_CENTER);
-        bottomNavigation.setPadding(new Insets(0,0,20,0));
+        bottomNavigation.setPadding(new Insets(0, 0, 20, 0));
 
         VBox controlsOverlay = createControlsOverlay(controlsView);
 
@@ -480,10 +475,9 @@ public class PlayerUI {
         showPlayer();
 
         Scene scene = createScene(
-                        root,
-                        controlsOverlay,
-                        controlsView
-                );
+                root,
+                controlsOverlay,
+                controlsView);
 
         scene.setOnKeyPressed(e -> {
 
@@ -597,8 +591,7 @@ public class PlayerUI {
                             event.consume();
                         }
                     }
-                }
-        );
+                });
 
         setupBackgroundBindings(backgroundImage, scene, artworkSection);
 
@@ -607,10 +600,6 @@ public class PlayerUI {
                 new Image(
                         Objects.requireNonNull(
                                 getClass().getResourceAsStream(
-                                        "/icons/AuraMusicFX_Ultimate.ico"
-                                )
-                        )
-                )
-        );
+                                        "/icons/AuraMusicFX_Ultimate.ico"))));
     }
 }

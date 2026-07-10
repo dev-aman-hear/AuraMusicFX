@@ -1,10 +1,16 @@
 using System;
 using System.IO;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Collections.Concurrent;
 using Windows.Media;
 using Windows.Media.Playback;
+
+[assembly: AssemblyTitle("AuraMusicFX")]
+[assembly: AssemblyProduct("AuraMusicFX")]
+[assembly: AssemblyDescription("AuraMusicFX Media Host")]
+[assembly: AssemblyCompany("Aman")]
 
 public class Program {
     private static MediaPlayer _player;
@@ -41,12 +47,9 @@ public class Program {
             // Create a 10-minute silent WAV file to prevent frequent looping resets
             CreateSilentWav(_silentAudioPath, 8000, 4800000);
 
-            object silentStorageFile = GetStorageFile(_silentAudioPath);
-            if (silentStorageFile != null) {
-                var mediaSource = CreateMediaSourceFromFile(silentStorageFile);
-                if (mediaSource != null) {
-                    _player.Source = (Windows.Media.Playback.IMediaPlaybackSource)mediaSource;
-                }
+            var mediaSource = CreateMediaSourceFromPath(_silentAudioPath);
+            if (mediaSource != null) {
+                _player.Source = (Windows.Media.Playback.IMediaPlaybackSource)mediaSource;
             }
 
             Thread inputThread = new Thread(ReadStdin);
@@ -78,26 +81,21 @@ public class Program {
                                 _updater.MusicProperties.Artist = DecodeField(parts[2]);
                                 _updater.MusicProperties.AlbumTitle = DecodeField(parts[3]);
                             }
-                            if (parts.Length >= 5) {
-                                string artPath = DecodeField(parts[4]);
-                                if (!string.IsNullOrEmpty(artPath) && File.Exists(artPath)) {
-                                    object storageFile = GetStorageFile(artPath);
-                                    if (storageFile != null) {
-                                        var thumbnail = CreateThumbnailFromFile(storageFile);
-                                        if (thumbnail != null) {
-                                            _updater.Thumbnail = (Windows.Storage.Streams.RandomAccessStreamReference)thumbnail;
-                                        } else {
-                                            _updater.Thumbnail = null;
-                                        }
-                                    } else {
-                                        _updater.Thumbnail = null;
-                                    }
-                                } else {
-                                    _updater.Thumbnail = null;
-                                }
-                            } else {
-                                _updater.Thumbnail = null;
-                            }
+                             if (parts.Length >= 5) {
+                                 string artPath = DecodeField(parts[4]);
+                                 if (!string.IsNullOrEmpty(artPath) && File.Exists(artPath)) {
+                                     object thumbnail = CreateThumbnailFromPath(artPath);
+                                     if (thumbnail != null) {
+                                         _updater.Thumbnail = (Windows.Storage.Streams.RandomAccessStreamReference)thumbnail;
+                                     } else {
+                                         _updater.Thumbnail = null;
+                                     }
+                                 } else {
+                                     _updater.Thumbnail = null;
+                                 }
+                             } else {
+                                 _updater.Thumbnail = null;
+                             }
                             _updater.Update();
                             break;
 
@@ -106,10 +104,10 @@ public class Program {
                                 string status = parts[1];
                                 if (status == "PLAYING") {
                                     _player.Play();
-                                    _controls.PlaybackStatus = MediaPlaybackStatus.Playing;
+                                    _controls.PlaybackStatus = MediaPlaybackStatus.Paused;
                                 } else if (status == "PAUSED") {
                                     _player.Pause();
-                                    _controls.PlaybackStatus = MediaPlaybackStatus.Paused;
+                                    _controls.PlaybackStatus = MediaPlaybackStatus.Playing;
                                 } else {
                                     _player.Pause();
                                     _controls.PlaybackStatus = MediaPlaybackStatus.Stopped;
@@ -206,61 +204,52 @@ public class Program {
         } catch {}
     }
 
-    private static object GetStorageFile(string path) {
+    private static object CreateThumbnailFromPath(string path) {
         try {
-            Type storageFileType = Type.GetType("Windows.Storage.StorageFile, Windows.Storage, ContentType=WindowsRuntime");
-            if (storageFileType == null) return null;
-            var getFileMethod = storageFileType.GetMethod("GetFileFromPathAsync", new Type[] { typeof(string) });
-            if (getFileMethod == null) return null;
-            object asyncOp = getFileMethod.Invoke(null, new object[] { path });
-            if (asyncOp == null) return null;
+            if (!File.Exists(path)) return null;
+            var fileStream = File.OpenRead(path);
 
-            var statusProp = asyncOp.GetType().GetProperty("Status");
-            if (statusProp == null) return null;
-
-            for (int i = 0; i < 100; i++) {
-                var status = statusProp.GetValue(asyncOp, null).ToString();
-                if (status == "Completed") {
-                    var getResultsMethod = asyncOp.GetType().GetMethod("GetResults");
-                    return getResultsMethod.Invoke(asyncOp, null);
-                } else if (status == "Error" || status == "Canceled") {
-                    return null;
-                }
-                Thread.Sleep(10);
+            Type extType = Type.GetType("System.IO.WindowsRuntimeStreamExtensions, System.Runtime.WindowsRuntime, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089");
+            if (extType == null) {
+                extType = Type.GetType("System.IO.WindowsRuntimeStreamExtensions");
             }
-        } catch {}
-        return null;
-    }
+            if (extType == null) return null;
 
-    private static object CreateThumbnailFromFile(object storageFile) {
-        try {
+            var asRandomAccessStreamMethod = extType.GetMethod("AsRandomAccessStream", new Type[] { typeof(Stream) });
+            if (asRandomAccessStreamMethod == null) return null;
+
+            object winrtStream = asRandomAccessStreamMethod.Invoke(null, new object[] { fileStream });
+            if (winrtStream == null) return null;
+
             Type streamRefType = Type.GetType("Windows.Storage.Streams.RandomAccessStreamReference, Windows.Storage, ContentType=WindowsRuntime");
             if (streamRefType == null) return null;
-            
-            Type iStorageFileType = Type.GetType("Windows.Storage.IStorageFile, Windows.Storage, ContentType=WindowsRuntime");
-            if (iStorageFileType == null) return null;
 
-            var createFromFileMethod = streamRefType.GetMethod("CreateFromFile", new Type[] { iStorageFileType });
-            if (createFromFileMethod == null) return null;
+            Type iRandomAccessStreamType = Type.GetType("Windows.Storage.Streams.IRandomAccessStream, Windows.Storage, ContentType=WindowsRuntime");
+            if (iRandomAccessStreamType == null) return null;
 
-            return createFromFileMethod.Invoke(null, new object[] { storageFile });
-        } catch {}
+            var createFromStreamMethod = streamRefType.GetMethod("CreateFromStream", new Type[] { iRandomAccessStreamType });
+            if (createFromStreamMethod == null) return null;
+
+            return createFromStreamMethod.Invoke(null, new object[] { winrtStream });
+        } catch (Exception ex) {
+            Console.WriteLine("THUMBNAIL_ERROR\t" + ex.Message + "\t" + ex.StackTrace);
+        }
         return null;
     }
 
-    private static object CreateMediaSourceFromFile(object storageFile) {
+    private static object CreateMediaSourceFromPath(string path) {
         try {
             Type mediaSourceType = Type.GetType("Windows.Media.Core.MediaSource, Windows.Media, ContentType=WindowsRuntime");
             if (mediaSourceType == null) return null;
             
-            Type iStorageFileType = Type.GetType("Windows.Storage.IStorageFile, Windows.Storage, ContentType=WindowsRuntime");
-            if (iStorageFileType == null) return null;
-
-            var method = mediaSourceType.GetMethod("CreateFromStorageFile", new Type[] { iStorageFileType });
+            var method = mediaSourceType.GetMethod("CreateFromUri", new Type[] { typeof(Uri) });
             if (method == null) return null;
 
-            return method.Invoke(null, new object[] { storageFile });
-        } catch {}
+            Uri uri = new Uri(path);
+            return method.Invoke(null, new object[] { uri });
+        } catch (Exception ex) {
+            Console.WriteLine("MEDIASOURCE_ERROR\t" + ex.Message + "\t" + ex.StackTrace);
+        }
         return null;
     }
 

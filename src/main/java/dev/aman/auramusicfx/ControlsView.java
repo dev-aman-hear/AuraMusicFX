@@ -99,19 +99,6 @@ public class ControlsView {
             LyricsManager lyricsManager,
             LyricsView lyricsView
     ) {
-
-        setupProgressUpdates(mediaManager);
-
-        mediaManager.setLyricsListener(
-                (obs, oldTime, newTime) -> {
-
-                    lyricsManager.updateLyrics(
-                            newTime.toSeconds(),
-                            lyricsView.getLyricsBox(),
-                            lyricsView.getScrollPane()
-                    );
-                }
-        );
     }
 
     public ControlsView(
@@ -156,8 +143,6 @@ public class ControlsView {
                         Duration.millis(100),
                         e -> {
 
-                            if (mediaManager.isVlcSong()) {
-
                                 long duration =
                                         mediaManager
                                                 .getVlcManager()
@@ -200,10 +185,7 @@ public class ControlsView {
                                         current / 1000.0,
                                         lyricsView.getLyricsBox(),
                                         lyricsView.getScrollPane()
-                                );
-                            }
-
-                        }
+                                );                        }
                 )
         );
 
@@ -223,25 +205,22 @@ public class ControlsView {
                 muteButton.setText("🔊");
             }
 
-            if (mediaManager.isVlcSong()) {
-
-                mediaManager.getVlcManager().setVolume((int) newVal.doubleValue());
-            } else if (mediaManager.getMediaPlayer() != null) {
-                mediaManager.getMediaPlayer().setVolume(newVal.doubleValue() / 100.0);
-            }
+            mediaManager.getVlcManager().setVolume((int) newVal.doubleValue());
         });
 
         //find constructor
 
-        mediaManager.setSongChangeListener(song -> {
+        mediaManager.addSongChangeListener(song -> {
 
-            updateNowPlaying(
+            Platform.runLater(() -> {
+                updateNowPlaying(
                     song,
                     mediaManager,
                     artworkSection,
                     lyricsManager,
                     lyricsView
-            );
+                );
+            });
         });
         artworkSection
                 .dominantColorProperty()
@@ -283,22 +262,6 @@ public class ControlsView {
                 lyricsView
         );
 
-        artworkSection.setArtwork(
-                mediaManager.getCurrentArtwork()
-        );
-
-        artworkSection.setSongTitle(
-                mediaManager.getCurrentTitle()
-        );
-
-        artworkSection.setArtist(
-                mediaManager.getCurrentArtist()
-        );
-
-        artworkSection.setAlbum(
-                mediaManager.getCurrentAlbum()
-        );
-
         lyricsManager.loadLyrics(
                 firstSong,
                 lyricsView.getLyricsBox()
@@ -329,22 +292,6 @@ public class ControlsView {
         LastFolderManager.saveFolder(selectedSong.getParentFile());
         LastSongManager.saveSong(selectedSong);
         mediaManager.playSong(selectedSong);
-
-        artworkSection.setArtwork(
-                mediaManager.getCurrentArtwork()
-        );
-
-        artworkSection.setSongTitle(
-                mediaManager.getCurrentTitle()
-        );
-
-        artworkSection.setArtist(
-                mediaManager.getCurrentArtist()
-        );
-
-        artworkSection.setAlbum(
-                mediaManager.getCurrentAlbum()
-        );
 
         lyricsManager.loadLyrics(
                 selectedSong,
@@ -583,16 +530,7 @@ Features
         closeButton.setOnAction(e -> {
 
             try {
-
-                if (mediaManager.isVlcSong()) {
-
-                    mediaManager.getVlcManager().stop();
-
-                } else if (mediaManager.getMediaPlayer() != null) {
-
-                    mediaManager.getMediaPlayer().stop();
-                }
-
+                mediaManager.getVlcManager().stop();
             } catch (Exception ex) {
 
                 ex.printStackTrace();
@@ -651,53 +589,7 @@ Features
         );
     }
 
-    private void setupProgressUpdates(
-            MediaManager mediaManager
-    ) {
 
-        if (mediaManager.getMediaPlayer() == null) {
-            return;
-        }
-        mediaManager.getMediaPlayer()
-                .currentTimeProperty()
-                .addListener((obs, oldTime, newTime) -> {
-                    if (
-                            !progressBar.isPressed()
-                    )
-                        if (mediaManager.getMediaPlayer() == null) {
-                            return;
-                        }{
-
-                        double total =
-                                mediaManager
-                                        .getMediaPlayer()
-                                        .getTotalDuration()
-                                        .toSeconds();
-
-                        double current =
-                                newTime.toSeconds();
-
-                        double target =
-                                (current / total) * 100;
-
-                        progressBar.setValue(target);
-
-                        progressFill.setProgress(current / total);
-                        currentTime.setText(
-                                formatTime(current)
-                        );
-
-                        double remaining =
-                                total - current;
-
-                        totalTime.setText(
-                                "-" + formatTime(remaining)
-                        );
-
-                    }
-
-                });
-    }
 
     private String formatTime(double seconds) {
 
@@ -764,12 +656,7 @@ Features
         double savedVolume = VolumeManager.loadVolume();
         volumeSlider.setValue(savedVolume);
         volumeFill.setProgress(volumeSlider.getValue() / 100.0);
-        if (mediaManager.isVlcSong()) {
-            mediaManager.getVlcManager().setVolume((int) savedVolume);
-
-        } else if (mediaManager.getMediaPlayer() != null) {
-            mediaManager.getMediaPlayer().setVolume(savedVolume / 100.0);
-        }
+        mediaManager.getVlcManager().setVolume((int) savedVolume);
         volumeFill.setStyle("""
     -fx-accent: white;
 
@@ -914,11 +801,7 @@ Features
                     percent * 100
             );
 
-            double total =
-                    mediaManager
-                            .getMediaPlayer()
-                            .getTotalDuration()
-                            .toSeconds();
+            double total = mediaManager.getCurrentDurationSeconds();
 
             double current =
                     total * percent;
@@ -976,8 +859,7 @@ Features
         artworkSection.setAlbum(
                 mediaManager.getCurrentAlbum()
         );
-        String name =
-                song.getName().toLowerCase();
+
 
         String[] info =
                 mediaManager.getAudioInfo(song);
@@ -1050,35 +932,13 @@ Features
         setupHover(nextButton);
 
         playButton.setOnAction(e -> {
-
-            if (mediaManager.isVlcSong()) {
-
-                if (mediaManager.getVlcManager().isPlaying()) {
-
-                    mediaManager.getVlcManager().pause();
-                    playButton.setText("▶");
-
-                } else {
-
-                    mediaManager.getVlcManager().resume();
-                    playButton.setText("❚❚");
-                }
-
-                mediaManager.syncWindowsPlaybackStatus();
-                return;
-            }
-
-            boolean currentlyPlaying =
-                    mediaManager.isPlaying();
-
+            boolean currentlyPlaying = mediaManager.isPlaying();
+            
             mediaManager.togglePlayPause();
-
+            
             if (currentlyPlaying) {
-
                 playButton.setText("▶");
-
             } else {
-
                 playButton.setText("❚❚");
             }
         });
@@ -1201,11 +1061,6 @@ Features
                 mediaManager
         );
 
-        if (mediaManager.getSongs().isEmpty()) {
-            return;
-        }
-
-
         if (!mediaManager.getSongs().isEmpty()) {
 
             File songToPlay = LastSongManager.loadSong();
@@ -1229,20 +1084,6 @@ Features
                     mediaManager,
                     lyricsManager,
                     lyricsView
-            );
-
-            artworkSection.setArtwork(
-                    mediaManager.getCurrentArtwork()
-            );
-
-            artworkSection.setSongTitle(
-                    mediaManager.getCurrentTitle()
-            );
-
-            artworkSection.setArtist(
-                    mediaManager.getCurrentArtist()
-            );
-            artworkSection.setAlbum(mediaManager.getCurrentAlbum()
             );
 
             lyricsManager.loadLyrics(
@@ -1297,6 +1138,20 @@ Features
 
     public Button getPreviousButton() {
         return previousButton;
+    }
+
+    public Button getPlayButton() {
+        return playButton;
+    }
+
+    public void play() {
+        mediaManager.resume();
+        playButton.setText("❚❚");
+    }
+
+    public void pause() {
+        mediaManager.pause();
+        playButton.setText("▶");
     }
 
     public void togglePlayPause() {
