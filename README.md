@@ -1,14 +1,14 @@
-# Aura Music v3
+# Aura Music v3.1.0
 
-A modern glassmorphism music player built with JavaFX. Version 3 brings a completely overhauled custom media decoding engine, significantly reducing the application size while lowering CPU and RAM usage. 
+A modern glassmorphism music player built with JavaFX. Version 3.1.0 introduces full System Media Transport Controls (SMTC) integration via the `jmtc` library, enhanced cross-platform media session handling, optimized decoders, and refined lyrics & artwork management.
 
 ## Features
 
 * 🎵 **Broad Format Support**: Playback for MP3, WAV, M4A, FLAC, ALAC, and M4P formats.
-* ⚡ **Optimized Core**: Reduced application size with highly optimized memory (RAM) and CPU usage footprint thanks to custom integrated decoders.
-* 🪟 **Native Windows Integration**: Full support for Windows 10 & 11 native Media Transport Controls (Volume Flyout) and system notifications.
+* ⚡ **Optimized Core**: Reduced application size with highly optimized memory (RAM) and CPU footprint thanks to custom integrated decoders.
+* 🪟 **Native System Media Transport Controls (SMTC)**: Native integration via `jmtc` supporting Windows 10 & 11 Media Transport Controls (Volume Flyout), keyboard media keys, system notifications, and Linux DBus session control.
 * 🎨 **Dynamic Album Artwork**: Seamless metadata and high-res cover art extraction.
-* 📝 **Synchronized Lyrics**: Built-in support for .lrc lyrics files.
+* 📝 **Synchronized Lyrics**: Built-in support for `.lrc` lyrics files with custom rendering.
 * 📂 **Smart Resume**: Automatic folder and playback position restoration on launch.
 * 🔀 **Playback Controls**: Shuffle mode, repeat modes, and robust queue management.
 * ⌨ **Keyboard Shortcuts**: Full keyboard accessibility for media playback.
@@ -27,19 +27,19 @@ A modern glassmorphism music player built with JavaFX. Version 3 brings a comple
 .\mvnw.cmd clean package
 
 mkdir jpackage-input
-cp target\AuraMusicFX-3.0.0.jar jpackage-input\
+cp target\AuraMusicFX-3.1.0.jar jpackage-input\
 
-jpackage --type app-image --name AuraMusicFX --input jpackage-input --main-jar AuraMusicFX-3.0.0.jar --main-class dev.aman.auramusicfx.Launcher --icon src\main\resources\icons\AuraMusicFX_Ultimate.ico --dest dist
+jpackage --type app-image --name AuraMusicFX --input jpackage-input --main-jar AuraMusicFX-3.1.0.jar --main-class dev.aman.auramusicfx.Launcher --icon src\main\resources\icons\AuraMusicFX_Ultimate.ico --dest dist
 
-jpackage --type msi --name AuraMusicFX --app-image dist\AuraMusicFX --app-version 3.0.0 --vendor "AuraMusic" --win-menu --win-shortcut --dest installer
+jpackage --type msi --name AuraMusicFX --app-image dist\AuraMusicFX --app-version 3.1.0 --vendor "AuraMusic" --win-menu --win-shortcut --dest installer
 
-jpackage --type exe --name AuraMusicFX --app-image dist\AuraMusicFX --app-version 3.0.0 --vendor "AuraMusic" --win-menu --win-shortcut --dest installer
+jpackage --type exe --name AuraMusicFX --app-image dist\AuraMusicFX --app-version 3.1.0 --vendor "AuraMusic" --win-menu --win-shortcut --dest installer
 ```
 
 ## Run Locally
 
 ```bash
-java -jar target/AuraMusicFX-3.0.0.jar
+java -jar target/AuraMusicFX-3.1.0.jar
 ```
 *Note: Ensure your Java environment supports JavaFX 21 or use the Maven `javafx:run` command to test changes locally.*
 

@@ -6,7 +6,7 @@
 
     <groupId>dev.aman</groupId>
     <artifactId>AuraMusicFX</artifactId>
-    <version>3.0.0</version>
+    <version>3.1.0</version>
     <name>AuraMusicFX</name>
 
     <properties>
